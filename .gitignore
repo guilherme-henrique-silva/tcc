@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.db
+*.sqlite
+data/*.db
+backend/persistence/checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+researches/
+sci_bot/
+*_old.md
+PROMPT_TO_SPEC.md
+.DS_Store
