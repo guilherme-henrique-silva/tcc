@@ -45,7 +45,7 @@ class DoclingTransformStage(PipelineStage):
             markdowns = self._convert_batch(links)
 
             self._report_substage(on_substage, "registrar_proc_news")
-            self._register_results(markdowns)
+            self._register_results(markdowns, input_data.get("pipeline_id"))
 
             output_data = self._create_output_data(markdowns)
 
@@ -129,17 +129,22 @@ class DoclingTransformStage(PipelineStage):
                 "error": str(e),
             }
 
-    def _register_results(self, markdowns: List[Dict[str, Any]]) -> None:
-        """Persist a PIPELINE_PROC_NEWS row per link (Rule 1)."""
+    def _register_results(
+        self,
+        markdowns: List[Dict[str, Any]],
+        pipeline_id: Optional[str],
+    ) -> None:
+        """Persist a PIPELINE_PROC_NEWS row per link, tagged with the run uuid (Rule 1)."""
         if not self.repo:
             return
 
         for entry in markdowns:
             record = ProcNewsRecord(
                 url=entry["url"],
-                ts_proc=datetime.now(),
+                proc_ts=datetime.now(),
                 site_name=entry["site"],
                 proc_success=entry["success"],
+                proc_id=pipeline_id,
             )
             self.repo.save_proc_news(record)
 

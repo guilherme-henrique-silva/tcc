@@ -6,6 +6,7 @@ venv/
 *.db
 *.sqlite
 data/*.db
+llm-models/
 backend/persistence/checkpoints/
 .pytest_cache/
 .mypy_cache/

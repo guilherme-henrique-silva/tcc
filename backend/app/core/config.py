@@ -1,9 +1,10 @@
 """Configuration and environment settings."""
 
+import json
 import os
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Dict, Optional, Tuple
 
 from dotenv import load_dotenv
 
@@ -64,6 +65,31 @@ class Config:
     CORRELATION_WINDOW = int(os.getenv("CORRELATION_WINDOW", "10"))
     ANOMALY_STD_THRESHOLD = float(os.getenv("ANOMALY_STD_THRESHOLD", "2.0"))
     TFIDF_COMPONENTS = int(os.getenv("TFIDF_COMPONENTS", "20"))
+
+    # LLM (Seções 11–12): tratamento de notícias via modelo local (HF) ou API.
+    LLM_BACKEND = os.getenv("LLM_BACKEND", "api")              # "local" | "api"
+    LLM_MODELS_DIR = os.getenv("LLM_MODELS_DIR", str(_REPO_ROOT / "llm-models"))
+    LLM_API_PROVIDER = os.getenv("LLM_API_PROVIDER", "anthropic")
+    LLM_API_MODEL = os.getenv("LLM_API_MODEL", "claude-sonnet-4-6")
+    # Catálogo de modelos locais (JSON), sem nomes hardcoded (Seção 12).
+    LLM_MODELS = os.getenv("LLM_MODELS", "[]")
+
+    @classmethod
+    def llm_models(cls) -> List[Dict[str, str]]:
+        """Parse o catálogo LLM_MODELS (JSON) tolerando valor ausente/ inválido (Seção 12)."""
+        raw = (cls.LLM_MODELS or "").strip()
+        if not raw:
+            return []
+
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+
+        if not isinstance(parsed, list):
+            return []
+
+        return [model for model in parsed if isinstance(model, dict)]
 
     @classmethod
     def date_range(cls) -> Tuple[date, date]:

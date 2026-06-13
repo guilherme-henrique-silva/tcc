@@ -1,12 +1,23 @@
-"""Page 1 - Upload de Dados."""
+"""Página - Upload de Dados (coleta manual de links e notícias)."""
 
 import streamlit as st
 import pandas as pd
 from streamlit_tags import st_tags
 from api_client import APIClient
+from components.context import context_block
 
-st.set_page_config(page_title="Upload de Dados", layout="wide")
 st.title("📤 Upload de Dados")
+
+context_block(
+    "Por que a coleta é manual?",
+    """
+    Não há crawler automatizado neste projeto: por limitação técnica, **você cola os
+    links** das notícias relevantes (ex.: matérias do G1, Valor, InfoMoney sobre o Banco
+    do Brasil e concorrentes). Cada link é depois convertido em **Markdown** pelo Docling
+    e segue para o tratamento e a engenharia de features. Aqui você também pode subir um
+    CSV de notícias e conferir o intervalo de datas das ações (obtidas via yfinance).
+    """,
+)
 
 client = APIClient()
 
@@ -35,7 +46,7 @@ with tab_links:
 
                 if existing and existing.get("PROC_SUCCESS"):
                     st.info(
-                        f"⏭️ '{url}' já processado em {existing['TS_PROC']} "
+                        f"⏭️ '{url}' já processado em {existing['PROC_TS']} "
                         f"(portal: {existing.get('NM_SITE')}). Reprocessamento evitado."
                     )
                 else:

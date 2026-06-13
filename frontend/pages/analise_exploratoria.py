@@ -1,4 +1,4 @@
-"""Page 5 - Análise Exploratória."""
+"""Página - Análise Exploratória (clusters, PCA, co-movimento)."""
 
 import streamlit as st
 import pandas as pd
@@ -6,8 +6,22 @@ import numpy as np
 import plotly.express as px
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Análise Exploratória", layout="wide")
+from components.context import context_block
+
 st.title("📈 Análise Exploratória de Dados (EDA)")
+
+context_block(
+    "Como ler estes gráficos",
+    """
+    A exploração não-supervisionada (Seção 2.6 do plano) procura padrões sem rótulo prévio:
+
+    - **Série temporal** — evolução dos preços de BBAS3 e concorrentes lado a lado.
+    - **Distribuição de retornos** — formato e caudas indicam volatilidade e dias atípicos.
+    - **Matriz de correlação / co-movimento** — quão juntos os bancos se movem; uma queda
+      na correlação móvel (janela de 10 dias) sugere um evento específico de BBAS3, candidato
+      a ser explicado por notícias.
+    """,
+)
 
 # Generate sample data
 date_range = pd.date_range("2025-01-01", periods=252)

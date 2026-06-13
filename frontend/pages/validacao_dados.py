@@ -1,9 +1,23 @@
-"""Page 4 - Validação de Dados."""
+"""Página - Validação de Dados (completude, ranges, correlações, anomalias)."""
 
 import streamlit as st
 
-st.set_page_config(page_title="Validação de Dados", layout="wide")
+from components.context import context_block
+
 st.title("✅ Validação de Dados")
+
+context_block(
+    "O que validamos e por quê",
+    """
+    Antes de modelar, conferimos a qualidade dos dados para evitar conclusões enganosas:
+
+    - **Completude** — não pode haver buracos nas séries de preço/notícia.
+    - **Ranges** — variações e volumes precisam ficar em faixas plausíveis (detecção de erros).
+    - **Correlações** — BBAS3 deve se mover de forma coerente com os concorrentes; quebras
+      abruptas indicam evento idiossincrático (potencial impacto de notícia).
+    - **Anomalias** — dias com variação além de 2σ são sinalizados para inspeção.
+    """,
+)
 
 col1, col2, col3 = st.columns(3)
 

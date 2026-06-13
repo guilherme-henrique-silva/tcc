@@ -5,6 +5,8 @@ from .news import News
 from .macroeconomic_indicator import MacroeconomicIndicator
 from .feature_set import FeatureSet, NewsFeatureSet, StockFeatureSet
 from .proc_news import ProcNewsRecord
+from .pipeline_proc import PipelineProcRecord
+from .treated_news import TreatedNewsRecord, parse_frontmatter
 
 __all__ = [
     "StockPrice",
@@ -14,4 +16,7 @@ __all__ = [
     "NewsFeatureSet",
     "StockFeatureSet",
     "ProcNewsRecord",
+    "PipelineProcRecord",
+    "TreatedNewsRecord",
+    "parse_frontmatter",
 ]

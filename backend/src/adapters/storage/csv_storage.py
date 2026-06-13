@@ -1,10 +1,12 @@
 """CSV Storage Adapter."""
 
-from typing import Dict, Optional
+from datetime import datetime
+from typing import Dict, List, Optional
 import pandas as pd
 from pathlib import Path
 
 from src.ports.data_source import StoragePort
+from src.domain.models import ProcNewsRecord, PipelineProcRecord, TreatedNewsRecord
 
 
 class CsvStorage(StoragePort):
@@ -65,6 +67,38 @@ class CsvStorage(StoragePort):
         except (OSError, IOError):
             pass
     
+    # --- Rastreabilidade de execução (Seção 9) -----------------------------
+    # O adapter CSV exporta apenas features; os registros de execução vivem no
+    # SQLiteStorage. Implementações no-op mantêm o contrato do StoragePort.
+
+    def save_proc_news(self, record: ProcNewsRecord) -> None:
+        """Not persisted by the CSV adapter (feature export only)."""
+        return None
+
+    def get_proc_news(self, url: str) -> Optional[ProcNewsRecord]:
+        """Not persisted by the CSV adapter (feature export only)."""
+        return None
+
+    def save_pipeline_proc(self, record: PipelineProcRecord) -> None:
+        """Not persisted by the CSV adapter (feature export only)."""
+        return None
+
+    def finish_pipeline_proc(self, proc_id: str, end_ts: datetime) -> None:
+        """Not persisted by the CSV adapter (feature export only)."""
+        return None
+
+    def save_treated_news(self, record: TreatedNewsRecord) -> None:
+        """Not persisted by the CSV adapter (feature export only)."""
+        return None
+
+    def get_treated_news(self, url: str) -> Optional[TreatedNewsRecord]:
+        """Not persisted by the CSV adapter (feature export only)."""
+        return None
+
+    def list_treated_news(self, proc_id: str) -> List[TreatedNewsRecord]:
+        """Not persisted by the CSV adapter (feature export only)."""
+        return []
+
     def _get_features_path(self, dataset_id: str) -> Path:
         """Get CSV path for features (Rule 1)."""
         safe_id = dataset_id.replace("/", "_")

@@ -1,8 +1,10 @@
-"""Streamlit main application."""
+"""Streamlit entrypoint - navegação, tema e sidebar compartilhada (Requisitos 2, 3, 6)."""
 
 import streamlit as st
+
 from api_client import APIClient
 from env_config import get_date_range
+from components.theme import apply_theme
 
 st.set_page_config(
     page_title="Data Pipeline - Análise de Ações e Notícias",
@@ -11,95 +13,73 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.title("📊 Pipeline de Dados para Análise de Ações")
-st.markdown(
-    """
-    Sistema completo para análise de impacto de notícias no mercado de ações,
-    com foco em BBSA3 (Banco do Brasil) e seus concorrentes.
-    """
-)
+# Tema claro/escuro alternável e persistente entre páginas (Requisito 2).
+apply_theme()
 
-st.info(
-    """
-    **Projeto de Conclusão de Curso (TCC)** - Análise do Impacto de Notícias 
-    sobre Preços de Ações usando Object Calisthenics, Arquitetura Hexagonal e Clean Code.
-    """
-)
 
-# Sidebar
-with st.sidebar:
-    st.header("⚙️ Configuração")
-    
-    st.subheader("Período de Análise")
-    _default_start, _default_end = get_date_range()
-    date_range = st.date_input(
-        "Selecione o intervalo de datas",
-        value=(_default_start, _default_end),
-        key="global_date_range"
-    )
-    
-    st.subheader("Backend Status")
+def _render_sidebar() -> None:
+    """Sidebar compartilhada: período de análise e verificação de status (Requisitos 5/6)."""
+    with st.sidebar:
+        st.header("⚙️ Configuração")
+
+        st.subheader("Período de Análise")
+        default_start, default_end = get_date_range()
+        st.date_input(
+            "Selecione o intervalo de datas",
+            value=(default_start, default_end),
+            key="global_date_range",
+        )
+
+        st.subheader("Status dos serviços")
+        _render_status_check()
+
+
+def _render_status_check() -> None:
+    """Botão único que reporta backend e banco; erros somem na nova tentativa (Requisito 6)."""
+    backend_slot = st.empty()
+    db_slot = st.empty()
+
     if st.button("🔄 Verificar Status"):
-        with st.spinner("Conectando ao backend..."):
-            try:
-                client = APIClient()
-                result = client.health_check()
-                st.success(f"Backend online — {result.get('status', 'OK')}")
-            except Exception as e:
-                st.error(f"Backend indisponível: {e}")
+        backend_slot.empty()
+        db_slot.empty()
+        client = APIClient()
+        _check_backend(client, backend_slot)
+        _check_database(client, db_slot)
 
-# Main content
-col1, col2, col3 = st.columns(3)
 
-with col1:
-    st.metric(
-        "Status do Backend",
-        "🟢 Online",
-        "Última atualização: agora"
-    )
+def _check_backend(client: APIClient, slot) -> None:
+    """Report backend connectivity in its placeholder (Requisito 6)."""
+    try:
+        result = client.health_check()
+        slot.success(f"Backend online — {result.get('status', 'OK')}")
+    except Exception as e:  # noqa: BLE001
+        slot.error(f"Backend indisponível: {e}")
 
-with col2:
-    st.metric(
-        "Checkpoints Disponíveis",
-        "0",
-        "Para recuperação de falhas"
-    )
 
-with col3:
-    st.metric(
-        "Dados Carregados",
-        "0",
-        "Registros em memória"
-    )
+def _check_database(client: APIClient, slot) -> None:
+    """Report database connectivity, citing the reason on failure (Requisito 6)."""
+    try:
+        result = client.health_check_db()
+        if result.get("status") == "ok":
+            slot.success("Banco de dados conectado")
+        else:
+            slot.error(f"Banco indisponível: {result.get('reason')}")
+    except Exception as e:  # noqa: BLE001
+        slot.error(f"Banco indisponível: {e}")
 
-st.markdown("---")
 
-st.subheader("🚀 Próximos Passos")
-st.markdown(
-    """
-    1. **Upload de Dados** - Carregue arquivo CSV com notícias
-    2. **Executar Pipeline** - Inicie o processamento
-    3. **Visualizar Features** - Analise as features calculadas
-    4. **Explorar Dados** - Faça análise exploratória com plots
-    """
-)
+_render_sidebar()
 
-st.markdown("---")
+# Navegação com rótulos numerados; arquivos sem prefixo numérico (Requisito 3).
+pages = [
+    st.Page("pages/inicio.py", title="Início", icon="🏠", default=True),
+    st.Page("pages/upload_dados.py", title="1 · Upload de Dados", icon="📤"),
+    st.Page("pages/executar_pipeline.py", title="2 · Executar Pipeline", icon="🚀"),
+    st.Page("pages/tratamento_noticias.py", title="3 · Tratamento de Notícias", icon="🧹"),
+    st.Page("pages/visualizar_features.py", title="4 · Visualizar Features", icon="📊"),
+    st.Page("pages/validacao_dados.py", title="5 · Validação de Dados", icon="✅"),
+    st.Page("pages/analise_exploratoria.py", title="6 · Análise Exploratória", icon="📈"),
+    st.Page("pages/timeline_bbas3.py", title="7 · Timeline BBAS3", icon="🕒"),
+]
 
-st.subheader("📖 Documentação")
-with st.expander("Ver arquitetura do projeto"):
-    st.markdown(
-        """
-        ### Estrutura
-        - **Backend**: FastAPI + Arquitetura Hexagonal
-        - **Frontend**: Streamlit + Pandas + Plotly
-        - **Persistência**: SQLite + Checkpoints
-        
-        ### Fases da Pipeline
-        1. **Coleta** - CSV de notícias + yfinance
-        2. **Validação** - Ranges, completude, correlações
-        3. **Features** - Stock, News, Competitors (2.4)
-        4. **Confundidores** - Selic, USD/BRL, commodities (2.5)
-        5. **Preparação** - Datasets para modelos (2.6)
-        """
-    )
+st.navigation(pages).run()

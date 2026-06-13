@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import Optional, List, Set
+import threading
 import uuid
 from datetime import datetime
 
@@ -12,11 +13,21 @@ from app.api.schemas import (
     PipelineRunResponse,
     StageResultDTO,
     ProcNewsDTO,
+    ConvertLinkRequest,
+    ConvertLinkResponse,
+    TreatNewsRequest,
+    TreatNewsResponse,
+    TreatedNewsSaveRequest,
+    TreatedNewsDTO,
+    LlmModelDTO,
+    DownloadModelRequest,
+    DownloadModelResponse,
     CheckpointDTO,
 )
 from app.core.logger import get_logger
 from app.core.exceptions import PipelineException
 from app.core.config import Config
+from src.domain.models import TreatedNewsRecord
 from src.pipeline import DataPipeline, DependencyContainer, StageName
 from persistence.checkpoint_manager import CheckpointManager
 
@@ -26,6 +37,10 @@ router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
 # In-memory job store (replace with database in production)
 JOBS_STORE = {}
+
+# Downloads de modelos em andamento (Seção 12): alimentam o status "🔁 baixando".
+_DOWNLOADS_IN_PROGRESS: Set[str] = set()
+_DOWNLOADS_LOCK = threading.Lock()
 
 # Initialize pipeline with dependencies
 _config = Config()
@@ -59,6 +74,8 @@ async def execute_pipeline(request: PipelineExecuteRequest):
         enabled_stages=enabled_stages,
         news_links=request.news_links,
         news_file_path=request.news_file_path,
+        use_llm_treatment=request.use_llm_treatment,
+        treatment_model_path=request.treatment_model_path,
     )
 
     return _to_run_response(result)
@@ -66,13 +83,100 @@ async def execute_pipeline(request: PipelineExecuteRequest):
 
 @router.get("/proc_news", response_model=Optional[ProcNewsDTO])
 async def get_proc_news(url: str):
-    """Return the PIPELINE_PROC_NEWS record for a URL, if present (Seção 8.5)."""
+    """Return the PIPELINE_PROC_NEWS record for a URL, if present (Seção 9)."""
     record = _container.get_storage().get_proc_news(url)
 
     if not record:
         return None
 
     return ProcNewsDTO(**record.to_dict())
+
+
+@router.post("/convert_link", response_model=ConvertLinkResponse)
+async def convert_link(request: ConvertLinkRequest):
+    """Convert a single news link into Markdown on demand for the treatment UI (Seção 10)."""
+    converter = _container.get_docling_converter()
+    site = converter.site_name(request.url)
+
+    try:
+        markdown = converter.to_markdown(request.url)
+        return ConvertLinkResponse(
+            url=request.url, site=site, markdown=markdown, success=True,
+        )
+
+    except Exception as e:  # noqa: BLE001
+        return ConvertLinkResponse(
+            url=request.url, site=site, markdown="", success=False, error=str(e),
+        )
+
+
+@router.post("/treat_news", response_model=TreatNewsResponse)
+async def treat_news(request: TreatNewsRequest):
+    """Treat one news Markdown via the configured LLM adapter (Seções 10/11)."""
+    from src.adapters.llm import PROMPT_TRATAMENTO_NOTICIAS
+
+    llm = _container.get_llm(request.model_path)
+    treated = llm.treat_news(request.markdown, prompt=PROMPT_TRATAMENTO_NOTICIAS)
+
+    return TreatNewsResponse(treated_markdown=treated)
+
+
+@router.post("/treated_news", response_model=TreatedNewsDTO)
+async def save_treated_news(request: TreatedNewsSaveRequest):
+    """Persist a treated news document edited/validated in the UI (Seção 10)."""
+    record = TreatedNewsRecord.from_treated_markdown(
+        url=request.url,
+        treated_markdown=request.treated_markdown,
+        proc_id=request.proc_id,
+    )
+    _container.get_storage().save_treated_news(record)
+
+    return TreatedNewsDTO(**record.to_dict())
+
+
+@router.get("/treated_news", response_model=Optional[TreatedNewsDTO])
+async def get_treated_news(url: str):
+    """Return the treated news document for a URL, if present (Seção 10)."""
+    record = _container.get_storage().get_treated_news(url)
+
+    if not record:
+        return None
+
+    return TreatedNewsDTO(**record.to_dict())
+
+
+@router.get("/llm_models", response_model=List[LlmModelDTO])
+async def list_llm_models():
+    """List the LLM_MODELS catalog with each model's on-disk status (Seção 12)."""
+    from src.adapters.llm.catalog import list_with_status
+
+    enriched = list_with_status(
+        _config.llm_models(),
+        _config.LLM_MODELS_DIR,
+        _downloads_in_progress(),
+    )
+
+    return [
+        LlmModelDTO(
+            name=str(model.get("name", "")),
+            path=str(model.get("path", "")),
+            vram=str(model.get("vram", "")),
+            best_use=str(model.get("best_use", "")),
+            status=model["status"],
+        )
+        for model in enriched
+    ]
+
+
+@router.post("/download_model", response_model=DownloadModelResponse)
+async def download_model(request: DownloadModelRequest):
+    """Start downloading the selected model on demand, never before start (Seção 12)."""
+    download_status = _start_model_download(request.model_path)
+
+    return DownloadModelResponse(
+        model_path=request.model_path,
+        status=download_status,
+    )
 
 
 @router.get("/status", response_model=PipelineStatusResponse)
@@ -134,6 +238,63 @@ async def list_checkpoints():
 
 
 # Helper functions (Rule 7: Keep methods small)
+
+def _downloads_in_progress() -> Set[str]:
+    """Snapshot of model paths currently downloading (Seção 12)."""
+    with _DOWNLOADS_LOCK:
+        return set(_DOWNLOADS_IN_PROGRESS)
+
+
+def _start_model_download(model_path: str) -> str:
+    """Start a background download of the selected model, if needed (Seção 12)."""
+    from src.adapters.llm.catalog import (
+        find_by_path,
+        repo_id_for,
+        resolve_local_dir,
+        disk_status,
+        STATUS_READY,
+    )
+
+    entry = find_by_path(_config.llm_models(), model_path)
+    if entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model not in catalog: {model_path}",
+        )
+
+    if disk_status(_config.LLM_MODELS_DIR, model_path, in_progress=()) == STATUS_READY:
+        return "ready"  # já presente em disco — nunca rebaixa
+
+    with _DOWNLOADS_LOCK:
+        if model_path in _DOWNLOADS_IN_PROGRESS:
+            return "downloading"
+        _DOWNLOADS_IN_PROGRESS.add(model_path)
+
+    repo_id = repo_id_for(entry)
+    local_dir = str(resolve_local_dir(_config.LLM_MODELS_DIR, model_path))
+    threading.Thread(
+        target=_run_model_download,
+        args=(model_path, repo_id, local_dir),
+        daemon=True,
+    ).start()
+
+    return "downloading"
+
+
+def _run_model_download(model_path: str, repo_id: str, local_dir: str) -> None:
+    """Download the model snapshot in a daemon thread, clearing the flag at the end."""
+    try:
+        from huggingface_hub import snapshot_download
+
+        snapshot_download(repo_id=repo_id, local_dir=local_dir)
+
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Model download failed for {model_path}: {e}")
+
+    finally:
+        with _DOWNLOADS_LOCK:
+            _DOWNLOADS_IN_PROGRESS.discard(model_path)
+
 
 def _create_job_id() -> str:
     """Generate unique job ID."""

@@ -12,12 +12,14 @@ from src.pipeline.pipeline_stage import (
 )
 from src.pipeline.stages import (
     DoclingTransformStage,
+    NewsTreatmentStage,
     DataCollectionStage,
     FeatureEngineeringStage,
     ConfoundingHandlerStage,
     ModelingPreparationStage,
 )
 from src.pipeline.dependency_container import DependencyContainer
+from src.domain.models import PipelineProcRecord
 from persistence.checkpoint_manager import CheckpointManager
 from app.core.config import Config
 from app.core.logger import get_logger
@@ -27,6 +29,7 @@ class StageName(str, Enum):
     """Identificadores das etapas habilitáveis da pipeline (Seção 2 do spec)."""
 
     DOCLING_TRANSFORM = "docling_transform"
+    NEWS_TREATMENT = "news_treatment"
     DATA_COLLECTION = "data_collection"
     FEATURE_ENGINEERING = "feature_engineering"
     CONFOUNDING_HANDLING = "confounding_handling"
@@ -73,6 +76,8 @@ class DataPipeline:
         enabled_stages: Optional[Set[StageName]] = None,
         news_links: Optional[List[str]] = None,
         news_file_path: str = None,
+        use_llm_treatment: bool = False,
+        treatment_model_path: Optional[str] = None,
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineResult:
         """
@@ -86,46 +91,53 @@ class DataPipeline:
         Returns PipelineResult with per-stage SUCCESS/SKIPPED/FAILED status.
         """
         overall_start = datetime.now()
+        self._record_run_start(overall_start)
 
-        input_data = self._create_initial_input(
-            date_range_start,
-            date_range_end,
-            news_file_path,
-            news_links,
-        )
+        try:
+            input_data = self._create_initial_input(
+                date_range_start,
+                date_range_end,
+                news_file_path,
+                news_links,
+                use_llm_treatment,
+                treatment_model_path,
+            )
 
-        stage_results: Dict[str, PipelineStageResult] = {}
-        stages_executed: List[str] = []
+            stage_results: Dict[str, PipelineStageResult] = {}
+            stages_executed: List[str] = []
 
-        for stage in self._stages:
-            if self._is_stage_disabled(stage, enabled_stages):
-                stage_results[stage.stage_name] = stage.create_skipped_result()
+            for stage in self._stages:
+                if self._is_stage_disabled(stage, enabled_stages):
+                    stage_results[stage.stage_name] = stage.create_skipped_result()
+                    stages_executed.append(stage.stage_name)
+                    self.logger.info(f"Stage {stage.stage_name} SKIPPED (feature toggle)")
+                    continue
+
+                stage_result = self._execute_stage(stage, input_data, on_substage)
+
+                stage_results[stage.stage_name] = stage_result
                 stages_executed.append(stage.stage_name)
-                self.logger.info(f"Stage {stage.stage_name} SKIPPED (feature toggle)")
-                continue
 
-            stage_result = self._execute_stage(stage, input_data, on_substage)
+                if stage_result.status == "FAILED":
+                    return self._create_failed_result(
+                        overall_start,
+                        datetime.now(),
+                        stages_executed,
+                        stage_results,
+                        stage_result.error_message,
+                    )
 
-            stage_results[stage.stage_name] = stage_result
-            stages_executed.append(stage.stage_name)
+                input_data = self._merge_stage_output(input_data, stage_result.data)
 
-            if stage_result.status == "FAILED":
-                return self._create_failed_result(
-                    overall_start,
-                    datetime.now(),
-                    stages_executed,
-                    stage_results,
-                    stage_result.error_message,
-                )
+            return self._create_success_result(
+                overall_start,
+                datetime.now(),
+                stages_executed,
+                stage_results,
+            )
 
-            input_data = self._merge_stage_output(input_data, stage_result.data)
-
-        return self._create_success_result(
-            overall_start,
-            datetime.now(),
-            stages_executed,
-            stage_results,
-        )
+        finally:
+            self._record_run_end(datetime.now())
 
     def resume_from_checkpoint(self, checkpoint_id: str) -> PipelineResult:
         """Resume pipeline from saved checkpoint (Rule 1: delegate)."""
@@ -171,6 +183,19 @@ class DataPipeline:
 
         return True
 
+    def _record_run_start(self, start_time: datetime) -> None:
+        """Persist a PIPELINE_PROC_ID row for this execution (Seção 9 do spec)."""
+        record = PipelineProcRecord(
+            proc_id=self.pipeline_id,
+            proc_ts_start=start_time,
+            proc_ts_end=None,
+        )
+        self.container.get_storage().save_pipeline_proc(record)
+
+    def _record_run_end(self, end_time: datetime) -> None:
+        """Stamp PROC_TS_END once the execution ends, success or failure (Seção 9)."""
+        self.container.get_storage().finish_pipeline_proc(self.pipeline_id, end_time)
+
     def _initialize_stages(self) -> List:
         """Initialize all pipeline stages, Docling as stage 0 (Rule 1)."""
         data_source = self.container.get_data_source()
@@ -180,6 +205,10 @@ class DataPipeline:
             DoclingTransformStage(
                 self.container.get_docling_converter(),
                 self.container.get_storage(),
+            ),
+            NewsTreatmentStage(
+                self.container.get_storage(),
+                self.container.get_llm,
             ),
             DataCollectionStage(data_source, tickers),
             FeatureEngineeringStage(),
@@ -238,6 +267,8 @@ class DataPipeline:
         date_range_end,
         news_file_path: str,
         news_links: Optional[List[str]],
+        use_llm_treatment: bool = False,
+        treatment_model_path: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create initial input for first stage (Rule 1)."""
         return {
@@ -248,6 +279,8 @@ class DataPipeline:
             "news_file_path": news_file_path,
             "news_links": news_links or [],
             "pipeline_id": self.pipeline_id,
+            "use_llm_treatment": use_llm_treatment,
+            "treatment_model_path": treatment_model_path,
         }
 
     def _merge_stage_output(

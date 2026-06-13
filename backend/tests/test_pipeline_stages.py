@@ -4,7 +4,11 @@ import pytest
 from datetime import datetime
 
 from backend.src.pipeline.pipeline_stage import PipelineStage, PipelineStageResult
-from backend.src.pipeline.stages import FeatureEngineeringStage, ConfoundingHandlerStage
+from backend.src.pipeline.stages import (
+    FeatureEngineeringStage,
+    ConfoundingHandlerStage,
+    NewsTreatmentStage,
+)
 
 
 class MockStage(PipelineStage):
@@ -62,10 +66,22 @@ class TestPipelineStages:
     def test_confounding_handler_stage_validation(self):
         """Test confounding handler stage validation."""
         stage = ConfoundingHandlerStage()
-        
+
         is_valid = stage.validate()
-        
+
         assert is_valid is True
+
+    def test_news_treatment_stage_initialization(self):
+        """News treatment stage initializes with its name and validates (Requisito 9)."""
+        stage = NewsTreatmentStage(storage=object(), llm_provider=lambda mp: None)
+
+        assert stage.stage_name == "news_treatment"
+        assert stage.validate() is True
+        assert stage.substages() == [
+            "selecionar_registros",
+            "tratar_llm",
+            "persistir_tratados",
+        ]
 
 
 if __name__ == "__main__":

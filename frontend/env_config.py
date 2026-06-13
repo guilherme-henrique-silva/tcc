@@ -32,18 +32,20 @@ def _parse(value: str, fallback: date) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
 
 
-# Identificadores e rótulos das etapas (feature toggle, Seção 4 do spec).
+# Identificadores e rótulos das etapas (feature toggle, Seção 8 do spec).
 STAGE_LABELS = {
     "docling_transform": "0 · Transformação Docling (links → Markdown)",
-    "data_collection": "1 · Coleta de preços (yfinance)",
-    "feature_engineering": "2 · Engenharia de features (2.4)",
-    "confounding_handling": "3 · Confundidores macro (2.5)",
-    "modeling_preparation": "4 · Preparação para modelagem (2.6)",
+    "news_treatment": "1 · Tratamento de notícias (limpeza + frontmatter)",
+    "data_collection": "2 · Coleta de preços (yfinance)",
+    "feature_engineering": "3 · Engenharia de features (2.4)",
+    "confounding_handling": "4 · Confundidores macro (2.5)",
+    "modeling_preparation": "5 · Preparação para modelagem (2.6)",
 }
 
 # Subetapas por etapa (espelha PipelineStage.substages no backend, Seção 3/5).
 SUBSTAGES = {
     "docling_transform": ["validar_links", "converter_markdown", "registrar_proc_news"],
+    "news_treatment": ["selecionar_registros", "tratar_llm", "persistir_tratados"],
     "data_collection": ["coletar_precos", "consolidar_noticias"],
     "feature_engineering": ["features_acoes", "features_noticias", "features_concorrentes"],
     "confounding_handling": [

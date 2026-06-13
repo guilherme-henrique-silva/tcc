@@ -1,25 +1,47 @@
-"""Page 2 - Executar Pipeline (feature toggle + stqdm + retentativa)."""
+"""Página - Executar Pipeline (feature toggle por checkbox + stqdm + retentativa)."""
 
 import streamlit as st
 from stqdm import stqdm
 
 from api_client import APIClient
 from env_config import STAGE_LABELS, SUBSTAGES, get_date_range
+from components.context import context_block
 
-st.set_page_config(page_title="Executar Pipeline", layout="wide")
 st.title("🚀 Executar Pipeline")
+
+context_block(
+    "O que cada etapa faz e por que a ordem importa",
+    """
+    A pipeline roda em sequência, e cada etapa alimenta a próxima:
+
+    1. **Transformação Docling** — converte os links colados em Markdown.
+    2. **Tratamento de notícias** — limpa o ruído e padroniza o frontmatter.
+    3. **Coleta** — busca os preços das ações (yfinance) e consolida as notícias.
+    4. **Engenharia de features** — sentimento, frequência, volatilidade, correlações (2.4).
+    5. **Confundidores** — Selic, dólar e commodities + teste de Granger (2.5).
+    6. **Preparação** — monta os datasets para modelagem (2.6).
+
+    Você pode marcar/desmarcar etapas abaixo: etapas desmarcadas são puladas (SKIPPED),
+    mantendo o mesmo contrato enviado ao backend.
+    """,
+)
 
 client = APIClient()
 
-# --- Seleção de etapas (Seção 4 do spec) -----------------------------------
-enabled = st.multiselect(
-    "Selecione as etapas a executar",
-    options=list(STAGE_LABELS.keys()),
-    default=list(STAGE_LABELS.keys()),
-    format_func=lambda key: STAGE_LABELS[key],
+# --- Seleção de etapas por checkbox (Requisito 7) --------------------------
+st.subheader("Etapas a executar")
+enabled = [
+    key for key in STAGE_LABELS
+    if st.checkbox(STAGE_LABELS[key], value=True, key=f"stage_{key}")
+]
+
+# Tratamento via LLM (Requisito 9): aplicado na etapa de tratamento de notícias.
+use_llm_treatment = st.checkbox(
+    "🤖 Usar LLM para tratar notícias pendentes (etapa de Tratamento)",
+    value=False,
 )
 
-# Links coletados manualmente (Seção 8) — vindos da página de upload.
+# Links coletados manualmente (Seção 9) — vindos da página de upload.
 news_links = st.session_state.get("news_links", [])
 if news_links:
     st.caption(f"🔗 {len(news_links)} link(s) de notícias na sessão.")
@@ -30,7 +52,7 @@ start_date, end_date = get_date_range()
 
 
 def _build_payload(stages: list) -> dict:
-    """Monta o payload enviado ao backend (Seção 4)."""
+    """Monta o payload enviado ao backend (Requisitos 7 e 9)."""
     return {
         "date_range": {
             "start_date": str(start_date),
@@ -38,6 +60,8 @@ def _build_payload(stages: list) -> dict:
         },
         "enabled_stages": stages,
         "news_links": news_links,
+        "use_llm_treatment": use_llm_treatment,
+        "treatment_model_path": st.session_state.get("treatment_model_path"),
     }
 
 

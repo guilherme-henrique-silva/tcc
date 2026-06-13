@@ -14,6 +14,7 @@ class DateRangeRequest(BaseModel):
 
 ALL_STAGE_NAMES = [
     "docling_transform",
+    "news_treatment",
     "data_collection",
     "feature_engineering",
     "confounding_handling",
@@ -36,6 +37,14 @@ class PipelineExecuteRequest(BaseModel):
         None,
         description="News links for the Docling transform stage (manual collection)."
     )
+    use_llm_treatment: bool = Field(
+        False,
+        description="Auto-treat pending news via LLM in the treatment stage (Seção 10)."
+    )
+    treatment_model_path: Optional[str] = Field(
+        None,
+        description="Selected local model path for LLM treatment (LLM_BACKEND=local)."
+    )
 
     class Config:
         schema_extra = {
@@ -47,6 +56,7 @@ class PipelineExecuteRequest(BaseModel):
                 },
                 "enabled_stages": ALL_STAGE_NAMES,
                 "news_links": ["https://g1.globo.com/economia/noticia.ghtml"],
+                "use_llm_treatment": False,
             }
         }
 
@@ -68,11 +78,77 @@ class PipelineRunResponse(BaseModel):
 
 
 class ProcNewsDTO(BaseModel):
-    """DTO for a PIPELINE_PROC_NEWS record (Seção 8 do spec)."""
+    """DTO for a PIPELINE_PROC_NEWS record (Seção 9 do spec)."""
     URL: str
-    TS_PROC: str
+    PROC_ID: Optional[str] = None
+    PROC_TS: str
     NM_SITE: Optional[str] = None
     PROC_SUCCESS: bool
+
+
+class ConvertLinkRequest(BaseModel):
+    """DTO for converting a single news link into Markdown on demand (Seção 10)."""
+    url: str = Field(..., description="News link to convert via Docling")
+
+
+class ConvertLinkResponse(BaseModel):
+    """DTO for the Markdown produced from a single link."""
+    url: str
+    site: str
+    markdown: str
+    success: bool
+    error: Optional[str] = None
+
+
+class TreatNewsRequest(BaseModel):
+    """DTO for treating one news Markdown via LLM (Seção 10/11 do spec)."""
+    markdown: str = Field(..., description="Raw Markdown produced by Docling")
+    model_path: Optional[str] = Field(
+        None,
+        description="Selected local model path (only used when LLM_BACKEND=local)."
+    )
+
+
+class TreatNewsResponse(BaseModel):
+    """DTO for the treated news Markdown (frontmatter + cleaned body)."""
+    treated_markdown: str
+
+
+class TreatedNewsSaveRequest(BaseModel):
+    """DTO for persisting a treated news document from the UI (Seção 10)."""
+    url: str = Field(..., description="News link (record key)")
+    treated_markdown: str = Field(..., description="Treated Markdown with frontmatter")
+    proc_id: Optional[str] = Field(None, description="Associated execution uuid, if any")
+
+
+class TreatedNewsDTO(BaseModel):
+    """DTO for a PIPELINE_TREATED_NEWS record (Seção 10)."""
+    URL: str
+    PROC_ID: Optional[str] = None
+    TITLE: str
+    SUBTITLE: str
+    NEWS_DATE: str
+    CONTENT: str
+
+
+class LlmModelDTO(BaseModel):
+    """DTO for one entry of the LLM_MODELS catalog with on-disk status (Seção 12)."""
+    name: str
+    path: str
+    vram: str
+    best_use: str
+    status: Literal["ready", "download", "downloading"]
+
+
+class DownloadModelRequest(BaseModel):
+    """DTO for triggering an on-demand model download (Seção 12)."""
+    model_path: str = Field(..., description="Catalog path of the model to download")
+
+
+class DownloadModelResponse(BaseModel):
+    """DTO for the result of starting a model download."""
+    model_path: str
+    status: Literal["ready", "downloading", "download"]
 
 
 class CheckpointResumeRequest(BaseModel):
@@ -183,3 +259,9 @@ class HealthCheckResponse(BaseModel):
     version: str
     uptime_seconds: float
     checkpoints_count: int
+
+
+class DbHealthResponse(BaseModel):
+    """DTO for database connectivity check (Seção 7 do spec)."""
+    status: Literal["ok", "error"]
+    reason: Optional[str] = None

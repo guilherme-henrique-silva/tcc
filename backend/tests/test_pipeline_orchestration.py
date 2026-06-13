@@ -19,10 +19,23 @@ class TestDataPipeline:
     def test_pipeline_initialization(self):
         """Test pipeline initializes with all stages."""
         assert self.pipeline is not None
-        # 5 stages: docling_transform + data_collection + feature_engineering
-        # + confounding_handling + modeling_preparation (Seção 1/8 do spec)
-        assert len(self.pipeline._stages) == 5
+        # 6 stages: docling_transform + news_treatment + data_collection
+        # + feature_engineering + confounding_handling + modeling_preparation (Seções 1/10).
+        assert len(self.pipeline._stages) == 6
         assert self.pipeline.pipeline_id is not None
+
+    def test_pipeline_stage_order_includes_treatment(self):
+        """News treatment runs between Docling and data collection (Requisito 9)."""
+        names = [stage.stage_name for stage in self.pipeline._stages]
+
+        assert names == [
+            "docling_transform",
+            "news_treatment",
+            "data_collection",
+            "feature_engineering",
+            "confounding_handling",
+            "modeling_preparation",
+        ]
     
     def test_pipeline_validate_input_valid(self):
         """Test input validation with valid data."""
@@ -110,12 +123,21 @@ class TestDataPipeline:
     def test_dependency_container_reset_singletons(self):
         """Test dependency container can reset singleton instances."""
         container = DependencyContainer(config=self.config)
-        
+
         source1 = container.get_data_source()
         container.reset_singletons()
         source2 = container.get_data_source()
-        
+
         assert source1 is not source2
+
+    def test_dependency_container_provides_llm(self):
+        """Container provides an LlmPort adapter for news treatment (Requisitos 10/11)."""
+        container = DependencyContainer(config=self.config)
+
+        llm = container.get_llm()
+
+        assert llm is not None
+        assert hasattr(llm, "treat_news")
 
 
 if __name__ == "__main__":

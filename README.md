@@ -13,13 +13,19 @@ A implementação segue **Arquitetura Hexagonal** (ports & adapters) e
 
 ## 1. Arquitetura
 
-- **Backend (FastAPI)** — orquestra a pipeline em 5 etapas, cada uma habilitável
-  individualmente (feature toggle) e dividida em subetapas tagueadas.
+- **Backend (FastAPI)** — orquestra a pipeline em 6 etapas, cada uma habilitável
+  individualmente (feature toggle) e dividida em subetapas tagueadas. Inclui uma etapa
+  de **tratamento de notícias** (manual ou via **LLM** em ports & adapters).
 - **Frontend (Streamlit)** — coleta manual de links (`streamlit-tags`), seleção de
-  etapas (`multiselect`), progresso aninhado (`stqdm`) e linha do tempo de notícias
-  negativas (`streamlit-timeline`).
-- **Persistência (SQLite)** — features, resultados de validação/Granger e a tabela
-  de controle de processamento de notícias `PIPELINE_PROC_NEWS`.
+  etapas por **checkbox**, **modo escuro** alternável, página de **tratamento de
+  notícias** (editor de código ou LLM, com validação lado a lado), progresso aninhado
+  (`stqdm`) e linha do tempo de notícias negativas (`streamlit-timeline`).
+- **Persistência (SQLite)** — features, resultados de validação/Granger, controle de
+  execução por UUID (`PIPELINE_PROC_ID`), processamento de notícias (`PIPELINE_PROC_NEWS`)
+  e documentos tratados (`PIPELINE_TREATED_NEWS`).
+- **LLM (ports & adapters)** — `LlmPort` com adapter **local** (HuggingFace Transformers,
+  download sob demanda por VRAM) ou **API** (Pydantic AI multiprovider), selecionável por
+  configuração.
 
 ```mermaid
 flowchart LR
@@ -27,7 +33,8 @@ flowchart LR
     ST -->|HTTP| API[FastAPI]
     API --> P[DataPipeline]
     P --> D[Docling Transform]
-    D -->|markdown| C[Data Collection]
+    D -->|markdown| T[News Treatment]
+    T -->|markdown tratado| C[Data Collection]
     C --> F[Feature Engineering]
     F --> CF[Confounding Handling]
     CF --> M[Modeling Preparation]
@@ -62,10 +69,11 @@ backend/
 | Ordem | `stage_name`            | Subetapas (em ordem)                                                        |
 |-------|-------------------------|-----------------------------------------------------------------------------|
 | 0     | `docling_transform`     | `validar_links` → `converter_markdown` → `registrar_proc_news`              |
-| 1     | `data_collection`       | `coletar_precos` → `consolidar_noticias`                                    |
-| 2     | `feature_engineering`   | `features_acoes` → `features_noticias` → `features_concorrentes`            |
-| 3     | `confounding_handling`  | `coletar_selic` → `coletar_dolar` → `coletar_commodities` → `teste_granger` |
-| 4     | `modeling_preparation`  | `dataset_nao_supervisionado` → `dataset_supervisionado` → `walk_forward`    |
+| 1     | `news_treatment`        | `selecionar_registros` → `tratar_llm` → `persistir_tratados`                |
+| 2     | `data_collection`       | `coletar_precos` → `consolidar_noticias`                                    |
+| 3     | `feature_engineering`   | `features_acoes` → `features_noticias` → `features_concorrentes`            |
+| 4     | `confounding_handling`  | `coletar_selic` → `coletar_dolar` → `coletar_commodities` → `teste_granger` |
+| 5     | `modeling_preparation`  | `dataset_nao_supervisionado` → `dataset_supervisionado` → `walk_forward`    |
 
 Cada etapa habilitada executa; cada etapa desabilitada retorna
 `PipelineStageResult(status="SKIPPED")`. Cada subetapa emite uma `SubStageTag`
@@ -81,11 +89,18 @@ Cada etapa habilitada executa; cada etapa desabilitada retorna
 
 | Método | Rota                       | Descrição                                                   |
 |--------|----------------------------|-------------------------------------------------------------|
-| POST   | `/pipeline/execute`        | Executa a pipeline (recebe `enabled_stages`, `news_links`). |
+| POST   | `/pipeline/execute`        | Executa a pipeline (recebe `enabled_stages`, `news_links`, `use_llm_treatment`). |
 | GET    | `/pipeline/proc_news`      | Consulta `PIPELINE_PROC_NEWS` por URL (de-duplicação).      |
+| POST   | `/pipeline/convert_link`   | Converte um link em Markdown sob demanda (UI de tratamento). |
+| POST   | `/pipeline/treat_news`     | Trata um Markdown via LLM (local/API).                      |
+| POST   | `/pipeline/treated_news`   | Persiste um documento tratado (frontmatter + conteúdo).     |
+| GET    | `/pipeline/treated_news`   | Consulta um documento tratado por URL.                      |
+| GET    | `/pipeline/llm_models`     | Catálogo de modelos locais + status em disco.               |
+| POST   | `/pipeline/download_model` | Baixa o modelo selecionado sob demanda (`llm-models/`).     |
 | GET    | `/pipeline/status`         | Status de um job (legado).                                  |
 | POST   | `/pipeline/resume`         | Retoma a partir de checkpoint.                              |
-| GET    | `/health`                  | Health check.                                               |
+| GET    | `/health`                  | Health check do backend.                                    |
+| GET    | `/health/db`               | Health check do banco (status + motivo do erro).           |
 
 A resposta de `/pipeline/execute` lista o status de **cada** etapa
 (`SUCCESS`/`SKIPPED`/`FAILED`), permitindo retentativa por etapa no frontend.
@@ -94,30 +109,42 @@ A resposta de `/pipeline/execute` lista o status de **cada** etapa
 
 ## 3. Frontend
 
-Páginas Streamlit (`frontend/pages/`):
+Navegação via `st.navigation`/`st.Page` (arquivos sem prefixo numérico; o número aparece
+só no rótulo do sidebar). Cada página traz um **bloco de contexto de negócio** em PT-BR e
+respeita o **modo escuro** alternável no sidebar.
 
 1. **Upload de Dados** — input em lote dos links (`streamlit-tags`) + de-duplicação
    contra `PIPELINE_PROC_NEWS`.
-2. **Executar Pipeline** — `multiselect` das etapas (feature toggle), progresso
-   aninhado com `stqdm` (etapa → subetapa, com razão `ordem/total`) e botão de
-   **retentativa** por etapa em falha.
-3. **Visualizar Features** / **Validação** / **Análise Exploratória**.
-6. **Timeline BBAS3** — `streamlit-timeline` com as notícias de sentimento negativo
+2. **Executar Pipeline** — seleção das etapas por **checkbox** (feature toggle), opção de
+   tratar pendentes via LLM, progresso aninhado com `stqdm` (etapa → subetapa, razão
+   `ordem/total`) e **retentativa** por etapa em falha.
+3. **Tratamento de Notícias** — converte o link sob demanda, trata manualmente
+   (`streamlit-code-editor`) ou via **LLM** (selectbox de modelos por VRAM + status em
+   disco), com **validação lado a lado** (original × tratado) não-bloqueante.
+4. **Visualizar Features** / **Validação** / **Análise Exploratória**.
+7. **Timeline BBAS3** — `streamlit-timeline` com as notícias de sentimento negativo
    coincidentes com queda de BBAS3.
 
-Bibliotecas: `stqdm` (progresso), `streamlit-tags` (links), `streamlit-timeline`
-(linha do tempo).
+Bibliotecas: `stqdm` (progresso), `streamlit-tags` (links), `streamlit-code-editor`
+(editor de tratamento), `streamlit-timeline` (linha do tempo).
 
 ---
 
 ## 4. Modelos da base de dados
 
-| Tabela                 | Campos principais                                                        |
-|------------------------|--------------------------------------------------------------------------|
-| `PIPELINE_PROC_NEWS`   | `URL` (PK), `TS_PROC` (timestamp), `NM_SITE` (texto), `PROC_SUCCESS` (bool) |
-| `features_<dataset>`   | colunas dinâmicas das features calculadas (uma por dataset)              |
-| `validation_results`   | `id` (PK), `data` (JSON), `created_at`                                   |
-| `granger_results`      | `id` (PK), `data` (JSON), `created_at`                                   |
+| Tabela                  | Campos principais                                                          |
+|-------------------------|----------------------------------------------------------------------------|
+| `PIPELINE_PROC_ID`      | `PROC_ID` (PK), `PROC_TS_START`, `PROC_TS_END` (NULL enquanto roda)         |
+| `PIPELINE_PROC_NEWS`    | `URL` (PK), `PROC_ID`, `PROC_TS`, `NM_SITE`, `PROC_SUCCESS`                 |
+| `PIPELINE_TREATED_NEWS` | `URL` (PK), `PROC_ID`, `TITLE`, `SUBTITLE`, `NEWS_DATE`, `CONTENT`          |
+| `features_<dataset>`    | colunas dinâmicas das features calculadas (uma por dataset)                |
+| `validation_results`    | `id` (PK), `data` (JSON), `created_at`                                     |
+| `granger_results`       | `id` (PK), `data` (JSON), `created_at`                                     |
+
+Cada execução grava uma linha em `PIPELINE_PROC_ID` (início; `PROC_TS_END` é carimbado ao
+final, em sucesso ou falha) e propaga o `PROC_ID` para `PIPELINE_PROC_NEWS` e
+`PIPELINE_TREATED_NEWS`. Bancos antigos são migrados de forma **idempotente** na
+inicialização (`TS_PROC` → `PROC_TS`, adição de `PROC_ID`), sem perda de dados.
 
 `NM_SITE` é derivado do domínio do link (ex.: `g1.globo.com` → `G1`) entre os
 portais G1, UOL, CNN Brasil, Folha, Estadão e Metrópoles.
@@ -140,6 +167,11 @@ Copie `.env.example` para `.env` e ajuste os valores. Referência consolidada:
 | `API_BCB_DOLAR`      | URL PTAX (ver `.env.example`)            |
 | `DATABASE_URL`       | local: default relativo ao repo · Docker: `sqlite:////app/data/pipeline.db` |
 | `YFINANCE_TICKERS`   | `BBAS3.SA,ITUB4.SA,BBDC4.SA,SANB11.SA`   |
+| `LLM_BACKEND`        | `api` \| `local`                         |
+| `LLM_API_PROVIDER`   | `anthropic` (Pydantic AI)                |
+| `LLM_API_MODEL`      | `claude-sonnet-4-6`                      |
+| `LLM_MODELS_DIR`     | `llm-models`                             |
+| `LLM_MODELS`         | JSON do catálogo por VRAM (ver `.env.example`) |
 
 ---
 
@@ -155,9 +187,15 @@ docker-compose up --build
 - Backend: http://localhost:8000 (docs em `/docs`)
 - Frontend: http://localhost:8501
 
-### Execução local
+### Execução local (sem Docker)
+
+O Docker é **opcional**: o `DATABASE_URL` tem default em um SQLite portátil
+(`<repo>/data/pipeline.db`), então backend e frontend sobem standalone, sem o serviço
+`db` do `docker-compose`. Troque `DATABASE_URL` no `.env` para apontar a outro arquivo/base.
 
 ```bash
+cp .env.example .env   # ajuste os valores (datas, LLM, etc.)
+
 # Backend
 pip install -r backend/requirements.txt
 uvicorn app.main:app --app-dir backend --reload --port 8000
@@ -166,6 +204,23 @@ uvicorn app.main:app --app-dir backend --reload --port 8000
 pip install -r frontend/requirements.txt
 streamlit run frontend/app.py
 ```
+
+Clique em **🔄 Verificar Status** no sidebar para conferir backend **e** banco; um erro de
+banco exibe o motivo e some na nova tentativa.
+
+### Configuração de LLM (tratamento de notícias)
+
+A etapa de tratamento limpa o Markdown e insere um frontmatter (`title`, `subtitle`,
+`url`, `date`). O provedor é selecionável por configuração (`LLM_BACKEND`):
+
+- **API** (`LLM_BACKEND=api`) — Pydantic AI multiprovider; defina `LLM_API_PROVIDER`
+  (ex.: `anthropic`) e `LLM_API_MODEL` (ex.: `claude-sonnet-4-6`) e a credencial do
+  provedor (ex.: `ANTHROPIC_API_KEY`).
+- **Local** (`LLM_BACKEND=local`) — HuggingFace Transformers. O catálogo `LLM_MODELS`
+  (JSON, sem nomes hardcoded) lista nome, VRAM, aplicação e caminho de cada modelo. O
+  download é **sob demanda** (somente após iniciar a execução e só do modelo selecionado),
+  para a pasta `llm-models/` (ignorada por git/docker); modelos já presentes não são
+  rebaixados.
 
 ### Testes
 
@@ -196,6 +251,8 @@ docker compose build   # reconstrói com o lock novo
 ## 7. Fluxo de uso
 
 1. Cole os links das notícias na página **Upload de Dados** (de-duplicação automática).
-2. Em **Executar Pipeline**, selecione as etapas desejadas e inicie a execução.
-3. Acompanhe o progresso aninhado (`stqdm`) e retente etapas que falharem.
-4. Visualize as features e a **timeline** das notícias com impacto negativo em BBAS3.
+2. Em **Tratamento de Notícias**, limpe o conteúdo de cada link — manualmente ou via LLM —
+   e valide o resultado lado a lado (original × tratado).
+3. Em **Executar Pipeline**, selecione as etapas por checkbox e inicie a execução.
+4. Acompanhe o progresso aninhado (`stqdm`) e retente etapas que falharem.
+5. Visualize as features e a **timeline** das notícias com impacto negativo em BBAS3.

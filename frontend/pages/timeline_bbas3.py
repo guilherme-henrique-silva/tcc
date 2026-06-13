@@ -1,20 +1,23 @@
-"""Page 6 - Timeline de notícias negativas de BBAS3 (Seção 9 do spec)."""
+"""Página - Timeline de notícias negativas de BBAS3 (Seção 5 do spec)."""
 
 import streamlit as st
 from streamlit_timeline import timeline
 
 from components.timeline_builder import build_timeline_json
+from components.context import context_block
 from env_config import get_date_range
 
-st.set_page_config(page_title="Timeline BBAS3", layout="wide")
 st.title("🕒 Linha do tempo — impacto negativo em BBAS3")
 
-st.markdown(
+context_block(
+    "Relação entre notícia e movimento de preço",
     """
-    Eventos selecionados: notícias com **sentimento negativo**
-    (`SentimentScore == -1`) coincidentes com **queda** de BBAS3 no dia
-    (`Variacao_Pct_BBAS3 < 0`).
-    """
+    A timeline ajuda a inspecionar visualmente a hipótese central do trabalho: notícias
+    negativas antecedem ou acompanham quedas de BBAS3. Os eventos exibidos cruzam
+    **sentimento negativo** (`SentimentScore == -1`) com **queda no dia**
+    (`Variacao_Pct_BBAS3 < 0`). A análise formal de defasagem (lags **T+0/T+1/T+2**) e
+    causalidade fica nas etapas de features (2.4) e no teste de Granger (2.5).
+    """,
 )
 
 start_date, _end_date = get_date_range()

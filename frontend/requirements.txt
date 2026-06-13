@@ -167,10 +167,6 @@ idna==3.18 \
     --hash=sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2 \
     --hash=sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848
     # via requests
-importlib-metadata==6.11.0 \
-    --hash=sha256:1231cf92d825c9e03cfc4da076a16de6422c863558229ea0b22b675657463443 \
-    --hash=sha256:f0afba6205ad8f8947c7d338b5342d5db2afbfd82f9cbef7879a9539cc12eb9b
-    # via streamlit
 jinja2==3.1.6 \
     --hash=sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d \
     --hash=sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67
@@ -528,9 +524,7 @@ pygments==2.20.0 \
 python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
-    # via
-    #   pandas
-    #   streamlit
+    # via pandas
 pytz==2026.2 \
     --hash=sha256:04156e608bee23d3792fd45c94ae47fae1036688e75032eea2e3bf0323d1f126 \
     --hash=sha256:0e60b47b29f21574376f218fe21abc009894a2321ea16c6754f3cad6eb7cdd6a
@@ -697,14 +691,19 @@ stqdm==0.0.5 \
     --hash=sha256:1bed78e60068da3afc7c6d87a5388006036633aa2fe2e19fa7db46483ef1227e \
     --hash=sha256:3177858c1ce5244821f13cc7cbd88a6dc8f154ef1bd12d2fa3342f2a9caf8843
     # via -r frontend/requirements.in
-streamlit==1.28.1 \
-    --hash=sha256:cca04f6d95b14b7bc37f0cabaf27504b86af6b4e1af98d73acc80ecdcfbcc492 \
-    --hash=sha256:f41c4e590299279a910c6a874aabc1428eda074c5f9d944403d2e192fce2ebb0
+streamlit==1.41.1 \
+    --hash=sha256:0def00822480071d642e6df36cd63c089f991da3a69fd9eb4ab8f65ce27de4e0 \
+    --hash=sha256:6626d32b098ba1458b71eebdd634c62af2dd876380e59c4b6a1e828a39d62d69
     # via
     #   -r frontend/requirements.in
     #   stqdm
+    #   streamlit-code-editor
     #   streamlit-tags
     #   streamlit-timeline
+streamlit-code-editor==0.1.21 \
+    --hash=sha256:5a4d2a3644b1cc84415d94a5a4383804170d41bd553a2afdaabc4309341e3677 \
+    --hash=sha256:8d4142b60c71d24a19d88f99cbb40213dd5818ebdddb4e1feeb8ff2c28cd0b7a
+    # via -r frontend/requirements.in
 streamlit-tags==1.2.8 \
     --hash=sha256:9ea46b21f206dc73164e59e3c800a96c863c90af57afde20115f001a6d986583 \
     --hash=sha256:c71b10666f3fce67d8e0b3c089aa50dc48830d310223fb88005b08f157586f95
@@ -749,18 +748,10 @@ tzdata==2026.2 \
     --hash=sha256:9173fde7d80d9018e02a662e168e5a2d04f87c41ea174b139fbef642eda62d10 \
     --hash=sha256:bbe9af844f658da81a5f95019480da3a89415801f6cc966806612cc7169bffe7
     # via pandas
-tzlocal==5.3.1 \
-    --hash=sha256:cceffc7edecefea1f595541dbd6e990cb1ea3d19bf01b2809f362a03dd7921fd \
-    --hash=sha256:eb1a66c3ef5847adf7a834f1be0800581b683b5608e74f86ecbcef8ab91bb85d
-    # via streamlit
 urllib3==2.7.0 \
     --hash=sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c \
     --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
     # via requests
-validators==0.35.0 \
-    --hash=sha256:992d6c48a4e77c81f1b4daba10d16c3a9bb0dbb79b3a19ea847ff0928e70497a \
-    --hash=sha256:e8c947097eae7892cb3d26868d637f79f47b4a0554bc6b80065dfe5aac3705dd
-    # via streamlit
 watchdog==6.0.0 \
     --hash=sha256:07df1fdd701c5d4c8e55ef6cf55b8f0120fe1aef7ef39a1c6fc6bc2e606d517a \
     --hash=sha256:20ffe5b202af80ab4266dcd3e91aae72bf2da48c0d33bdb15c66658e685e94e2 \
@@ -793,7 +784,3 @@ watchdog==6.0.0 \
     --hash=sha256:e7631a77ffb1f7d2eefa4445ebbee491c720a5661ddf6df3498ebecae5ed375c \
     --hash=sha256:ef810fbf7b781a5a593894e4f439773830bdecb885e6880d957d5b9382a960d2
     # via streamlit
-zipp==4.1.0 \
-    --hash=sha256:25ad4e16390cd314347dd8f1de67a2ac538ae658ed4ab9db16029c07c188e97f \
-    --hash=sha256:4cb57381f544315db7688e976e922a2b18cdb513d21cc194eb42232ba2a3e602
-    # via importlib-metadata

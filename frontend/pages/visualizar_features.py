@@ -1,18 +1,33 @@
-"""Page 3 - Visualizar Features."""
+"""Página - Visualizar Features (ações, notícias e confundidores)."""
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Visualizar Features", layout="wide")
+from components.context import context_block
+
 st.title("📊 Análise de Features")
 
-st.info("Features serão exibidas após a pipeline ser executada com sucesso")
+context_block(
+    "O que são estas features?",
+    """
+    As features traduzem os dados brutos em sinais comparáveis (Seção 2.4 do plano):
 
-tab1, tab2, tab3 = st.tabs(["Stock Features", "News Features", "Features + Confundidores"])
+    - **Features de ações** — variação percentual diária, volatilidade (20 dias), volume
+      normalizado e detecção de anomalias (>2σ).
+    - **Features de notícias** — sentimento (+1/0/-1), frequência diária, TF-IDF reduzido
+      e reconhecimento de entidades (banco, governo, commodity).
+    - **Features + confundidores** — cruzam o sinal das notícias com Selic, dólar e
+      commodities, para separar efeito de notícia de contexto macroeconômico (Seção 2.5).
+    """,
+)
+
+st.info("As features serão exibidas após a pipeline ser executada com sucesso.")
+
+tab1, tab2, tab3 = st.tabs(["Features de ações", "Features de notícias", "Features + confundidores"])
 
 with tab1:
-    st.subheader("Stock Features")
+    st.subheader("Features de ações")
     st.write("Retorno diário, volatilidade, volume, anomalias")
     
     # Placeholder DataFrame
@@ -35,7 +50,7 @@ with tab1:
     st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
-    st.subheader("News Features")
+    st.subheader("Features de notícias")
     st.write("Sentimento, frequência, TF-IDF, entidades")
     
     df_news = pd.DataFrame({
@@ -50,7 +65,7 @@ with tab2:
     st.plotly_chart(fig, use_container_width=True)
 
 with tab3:
-    st.subheader("Features + Confundidores")
+    st.subheader("Features + confundidores")
     st.write("Selic, USD/BRL, commodities")
     
     # Placeholder correlation heatmap

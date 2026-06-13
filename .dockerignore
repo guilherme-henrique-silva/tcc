@@ -8,6 +8,7 @@ __pycache__/
 *.db
 *.sqlite
 data/
+llm-models/
 backend/persistence/checkpoints/
 .pytest_cache/
 .mypy_cache/
