@@ -21,11 +21,13 @@ Conteúdo principal aqui.
 
 Regras:
 - Não invente fatos; extraia título, subtítulo e data do próprio conteúdo.
-- No corpo da notícia pode conter comentários de usuários em redes sociais.
+- Comentários de usuários em redes sociais devem ser mantidos parcialmente.
 Mantenha apenas o texto principal destes comentários, incluindo eventuais hashtags (#),
 ignorando usernames e demais elementos do bloco de comentário incorporado à notícia
 e formate eles em blockquotes.
 Importante: NÃO adicione todos os comentários em um único blockquote;
 cada comentário deve ter o seu próprio separado dos demais.
+- Tabelas devem ser mantidas.
+- Links dentro do conteúdo relevante da matéria devem ser mantidos.
 - Responda APENAS com o Markdown tratado (frontmatter + corpo),
 sem adicionar comentários próprios."""
