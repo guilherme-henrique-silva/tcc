@@ -75,7 +75,7 @@ class DependencyContainer:
         return self._bcb_adapter
 
     def get_llm(self, model_path: Optional[str] = None) -> LlmPort:
-        """Get the LLM adapter for news treatment, local or API per config (Seção 11).
+        """Get the LLM adapter for news treatment, local or API per config.
 
         Local inference depends on the model selected per request, so it is built
         fresh; the stateless API adapter is cached as a singleton.

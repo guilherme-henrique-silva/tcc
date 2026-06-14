@@ -1,4 +1,4 @@
-"""Timeline builder - monta o JSON KnightLab das notícias negativas de BBAS3 (Seção 9)."""
+"""Timeline builder — monta o JSON KnightLab das notícias negativas de BBAS3."""
 
 from datetime import date, datetime
 from typing import Dict, List, Optional
@@ -19,7 +19,7 @@ def _to_date(value) -> Optional[date]:
 
 
 def is_negative_event(news_row: Dict) -> bool:
-    """Notícia negativa coincidente com queda de BBAS3 (Seção 9.1)."""
+    """Notícia negativa coincidente com queda de BBAS3."""
     sentiment = news_row.get("SentimentScore")
     variacao = news_row.get("Variacao_Pct_BBAS3")
 
@@ -59,7 +59,7 @@ def build_timeline_json(
     news_rows: List[Dict],
     title_year: str = "",
 ) -> Dict:
-    """Monta o dict KnightLab a partir das notícias negativas (Seção 9.2)."""
+    """Monta o dict KnightLab a partir das notícias negativas."""
     events = []
 
     for row in news_rows:

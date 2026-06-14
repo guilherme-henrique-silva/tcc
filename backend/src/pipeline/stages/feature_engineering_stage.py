@@ -22,7 +22,7 @@ class FeatureEngineeringStage(PipelineStage):
         self.service = FeatureEngineeringService()
 
     def substages(self) -> List[str]:
-        """Subetapas em ordem (Seção 3 do spec)."""
+        """Subetapas em ordem."""
         return ["features_acoes", "features_noticias", "features_concorrentes"]
 
     def execute(

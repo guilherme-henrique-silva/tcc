@@ -13,7 +13,7 @@ st.title("📈 Análise Exploratória de Dados (EDA)")
 context_block(
     "Como ler estes gráficos",
     """
-    A exploração não-supervisionada (Seção 2.6 do plano) procura padrões sem rótulo prévio:
+    A exploração não-supervisionada procura padrões sem rótulo prévio:
 
     - **Série temporal** — evolução dos preços de BBAS3 e concorrentes lado a lado.
     - **Distribuição de retornos** — formato e caudas indicam volatilidade e dias atípicos.

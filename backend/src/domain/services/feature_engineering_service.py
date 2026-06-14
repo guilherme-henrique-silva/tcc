@@ -1,4 +1,4 @@
-"""Feature Engineering Service - Tópico 2.4."""
+"""Feature Engineering Service — extração de features de ações e notícias."""
 
 from dataclasses import dataclass
 from typing import List, Dict, Optional

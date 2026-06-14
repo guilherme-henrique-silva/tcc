@@ -8,7 +8,7 @@ _FRONTMATTER_KEYS = ("title", "subtitle", "url", "date")
 
 
 def parse_frontmatter(markdown: str) -> Tuple[Dict[str, str], str]:
-    """Separa o frontmatter YAML simples do corpo (Seção 10 do spec).
+    """Separa o frontmatter YAML simples do corpo.
 
     Returns:
         (metadata, body) — metadata sempre contém title/subtitle/url/date
@@ -56,7 +56,7 @@ def _absorb_frontmatter_line(line: str, meta: Dict[str, str]) -> None:
 
 @dataclass(frozen=True)
 class TreatedNewsRecord:
-    """Notícia tratada: frontmatter (title/subtitle/url/date) + conteúdo (Seção 10)."""
+    """Notícia tratada: frontmatter (title/subtitle/url/date) + conteúdo."""
 
     url: str                       # link da notícia (PK)
     title: str

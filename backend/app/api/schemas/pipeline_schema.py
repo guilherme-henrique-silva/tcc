@@ -39,7 +39,7 @@ class PipelineExecuteRequest(BaseModel):
     )
     use_llm_treatment: bool = Field(
         False,
-        description="Auto-treat pending news via LLM in the treatment stage (Seção 10)."
+        description="Auto-treat pending news via LLM in the treatment stage."
     )
     treatment_model_path: Optional[str] = Field(
         None,
@@ -69,7 +69,7 @@ class StageResultDTO(BaseModel):
 
 
 class PipelineRunResponse(BaseModel):
-    """DTO for a synchronous pipeline run result (Seção 2 do spec)."""
+    """DTO for a synchronous pipeline run result (pipeline run result)."""
     pipeline_id: str
     status: Literal["SUCCESS", "FAILED"]
     stages_executed: List[str]
@@ -78,7 +78,7 @@ class PipelineRunResponse(BaseModel):
 
 
 class ProcNewsDTO(BaseModel):
-    """DTO for a PIPELINE_PROC_NEWS record (Seção 9 do spec)."""
+    """DTO for a PIPELINE_PROC_NEWS record."""
     URL: str
     PROC_ID: Optional[str] = None
     PROC_TS: str
@@ -87,7 +87,7 @@ class ProcNewsDTO(BaseModel):
 
 
 class ConvertLinkRequest(BaseModel):
-    """DTO for converting a single news link into Markdown on demand (Seção 10)."""
+    """DTO for converting a single news link into Markdown on demand."""
     url: str = Field(..., description="News link to convert via Docling")
 
 
@@ -101,7 +101,7 @@ class ConvertLinkResponse(BaseModel):
 
 
 class TreatNewsRequest(BaseModel):
-    """DTO for treating one news Markdown via LLM (Seção 10/11 do spec)."""
+    """DTO for treating one news Markdown via LLM."""
     markdown: str = Field(..., description="Raw Markdown produced by Docling")
     model_path: Optional[str] = Field(
         None,
@@ -115,14 +115,14 @@ class TreatNewsResponse(BaseModel):
 
 
 class TreatedNewsSaveRequest(BaseModel):
-    """DTO for persisting a treated news document from the UI (Seção 10)."""
+    """DTO for persisting a treated news document from the UI."""
     url: str = Field(..., description="News link (record key)")
     treated_markdown: str = Field(..., description="Treated Markdown with frontmatter")
     proc_id: Optional[str] = Field(None, description="Associated execution uuid, if any")
 
 
 class TreatedNewsDTO(BaseModel):
-    """DTO for a PIPELINE_TREATED_NEWS record (Seção 10)."""
+    """DTO for a PIPELINE_TREATED_NEWS record."""
     URL: str
     PROC_ID: Optional[str] = None
     TITLE: str
@@ -132,7 +132,7 @@ class TreatedNewsDTO(BaseModel):
 
 
 class LlmModelDTO(BaseModel):
-    """DTO for one entry of the LLM_MODELS catalog with on-disk status (Seção 12)."""
+    """DTO for one entry of the LLM_MODELS catalog with on-disk status."""
     name: str
     path: str
     vram: str
@@ -141,7 +141,7 @@ class LlmModelDTO(BaseModel):
 
 
 class DownloadModelRequest(BaseModel):
-    """DTO for triggering an on-demand model download (Seção 12)."""
+    """DTO for triggering an on-demand model download."""
     model_path: str = Field(..., description="Catalog path of the model to download")
 
 
@@ -262,6 +262,6 @@ class HealthCheckResponse(BaseModel):
 
 
 class DbHealthResponse(BaseModel):
-    """DTO for database connectivity check (Seção 7 do spec)."""
+    """DTO for database connectivity check."""
     status: Literal["ok", "error"]
     reason: Optional[str] = None

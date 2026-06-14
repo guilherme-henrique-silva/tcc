@@ -67,7 +67,7 @@ class CsvStorage(StoragePort):
         except (OSError, IOError):
             pass
     
-    # --- Rastreabilidade de execução (Seção 9) -----------------------------
+    # --- Rastreabilidade de execução -----------------------------
     # O adapter CSV exporta apenas features; os registros de execução vivem no
     # SQLiteStorage. Implementações no-op mantêm o contrato do StoragePort.
 

@@ -1,4 +1,4 @@
-"""Confounding Handler Service - Tópico 2.5."""
+"""Confounding Handler Service — variáveis de controle macroeconômicas."""
 
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
@@ -34,12 +34,12 @@ class GrangerTestResult:
 
 
 class ConfoundingHandlerService:
-    """Service for handling confounding variables and causality testing (Tópico 2.5)."""
+    """Service for handling confounding variables and causality testing."""
     
     SIGNIFICANCE_LEVEL = 0.05
 
     def __init__(self, bcb_adapter: Optional[BcbApiAdapter] = None):
-        """Initialize service with the Banco Central data adapter (Tópico 2.5)."""
+        """Initialize service with the Banco Central data adapter."""
         self.bcb_adapter = bcb_adapter or BcbApiAdapter()
 
     def get_control_variables(
@@ -88,7 +88,7 @@ class ConfoundingHandlerService:
         )
     
     def _load_selic_data(self, date_range: DateRange) -> pd.DataFrame:
-        """Load Selic (SGS 11) data from the Banco Central API (Tópico 2.5)."""
+        """Load Selic (SGS 11) data from the Banco Central API."""
         records = self.bcb_adapter.fetch_selic()
 
         rows = [
@@ -102,7 +102,7 @@ class ConfoundingHandlerService:
         return self._filter_by_range(df, date_range)
 
     def _load_usd_brl_data(self, date_range: DateRange) -> pd.DataFrame:
-        """Load USD/BRL (PTAX) data from the Banco Central API (Tópico 2.5)."""
+        """Load USD/BRL (PTAX) data from the Banco Central API."""
         response = self.bcb_adapter.fetch_dolar()
 
         rows = [

@@ -1,4 +1,4 @@
-"""Prompts de LLM, prontos para receber novos prompts em evoluções (Seção 10 do spec)."""
+"""Prompts de LLM — constantes de instrução para os adapters."""
 
 _PROMPT_TRATAMENTO_NOTICIAS = """\
 Você é um editor que limpa e normaliza o Markdown de uma notícia.

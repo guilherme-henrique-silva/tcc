@@ -3,6 +3,70 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Não lançado] — Iteração 2 (R2–R10)
+
+Ciclo de polimento de UX, segurança de dados e qualidade de código. Nenhum requisito
+funcional da iteração 1 foi removido; todas as mudanças são incrementais.
+
+### Adicionado
+- **Paleta de cores configurável** (R2): `_Palette` (dataclass frozen com 7 papéis:
+  `primary`, `secondary`, `tertiary`, `text`, `highlight`, `background`, `surface`) em
+  `frontend/components/theme.py`. Instâncias `_LIGHT` e `_DARK` isolam os valores; o
+  CSS de cada tema é gerado a partir delas — sem strings de cor duplicadas no código.
+- **Light mode funcional** (R2): antes somente o dark mode tinha CSS customizado; agora
+  `apply_theme()` aplica `_LIGHT_CSS` quando o toggle está desligado, corrigindo a
+  aparência escura em modo claro.
+- **Restrições de data** (R3): aba Ações salva `acoes_start_date` em `st.session_state`;
+  data final da aba Ações e do sidebar não ultrapassa `date.today()` (ajuste automático
+  com `st.warning`); data inicial do sidebar não pode ser anterior à data inicial da aba
+  Ações (mesma mecânica de ajuste).
+- **Chunking de período BCB** (R4): `DateRange.split(max_days=365)` divide qualquer
+  intervalo em sub-intervalos consecutivos sem sobreposição; `BcbApiAdapter` itera os
+  chunks para Selic e PTAX, de-duplicando por data antes de retornar — evita erro HTTP
+  para períodos ≥ 1 ano.
+- **Checkbox Google CSE** (R5): ao marcar "Usar Google CSE", um `st.text_input` para o
+  ID do mecanismo aparece condicionalmente na aba de links.
+- **Documentação de colunas CSV** (R5): tabela de colunas esperadas (`date`, `title`,
+  `content` obrigatórias; `source`, `url`, `sentiment` opcionais) com tipos e aviso de
+  que linhas fora do padrão são desconsideradas — alinhado ao comportamento silencioso
+  existente no `CsvNewsAdapter`.
+- **Mapa de dependências entre etapas** (R6): `_REQUIRES` + `_MANDATORY` em
+  `executar_pipeline.py`; etapas obrigatórias ficam `disabled=True, value=True`; etapas
+  opcionais com pré-requisito desmarcado ficam desabilitadas — evita execução inválida.
+- **UUID de execução exibido** (R6): após iniciar a pipeline o ID retornado em
+  `pipeline_id` é exibido como `st.success` ao usuário.
+- **Editor sempre presente** (R7): a página de tratamento exibe o `streamlit-code-editor`
+  mesmo quando a pipeline ainda não rodou — com um template de exemplo (frontmatter YAML
+  + corpo) nas colunas "Arquivo original em .md" e "Editor de tratamento".
+- **Status do modelo no selectbox** (R7): label de cada opção do selectbox passa a ser
+  `Nome (ícone estado)`, ex.: `Qwen3-4B (✅ pronto)` — sem texto extra abaixo.
+- **`VramTier` enum** (R7): `backend/src/adapters/llm/vram_tier.py` com faixas fixas
+  `LIGHT` (≤ 4 GB), `BALANCED` (5–8 GB) e `ADVANCED` (> 8 GB). `from_vram_string()`
+  extrai o número da string do catálogo; `recommendation` retorna texto padronizado.
+  Substitui a string livre `best_use` do `.env`.
+- **Testes de `VramTier`** (R9): `TestVramTier` em `backend/tests/test_llm.py` — parsing
+  de VRAM nas três faixas e nos casos degenerados (string vazia, sem dígito), verificação
+  de que textos de recomendação existem e são distintos.
+- **Testes de `DateRange.split`** (R9): `TestDateRangeSplit` em
+  `backend/tests/test_pipeline_orchestration.py` — período < max, exatamente max, 1 dia
+  acima, cobertura total do intervalo, ausência de sobreposição e ausência de chunk acima
+  do limite.
+
+### Alterado
+- **Checkbox LLM removido da execução** (R6): o checkbox "Tratar via LLM" saiu da tela
+  de execução; um `st.info` direciona o usuário à página de tratamento — elimina a
+  configuração duplicada.
+- **Descrições de etapa mais didáticas** (R6): cada checkbox de etapa tem um texto de
+  contexto expandido, sem referências a números de seção.
+- **Aviso de conformidade** (R7): bloco de contexto da tela de tratamento informa que
+  registros fora do template são desconsiderados nas etapas seguintes.
+- **Remoção de referências a seções** (R8): todos os padrões `(Seção X)`, `(Tópico X.X)`,
+  `(Seções X/Y)` e variações foram removidos de docstrings, comentários e labels em
+  24 arquivos de backend e frontend — código rastreável por nome de função/classe,
+  não por número de seção da spec.
+
+---
+
 ## [Não lançado] — Evolução da pipeline (Requisitos 1–13)
 
 Refatoração **incremental** preservando Arquitetura Hexagonal, Clean Code e Object

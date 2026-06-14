@@ -1,4 +1,4 @@
-"""Docling converter adapter - converte links de notícias em Markdown (Seção 8 do spec)."""
+"""Docling converter adapter - converte links de notícias em Markdown."""
 
 from typing import Optional
 from urllib.parse import urlparse

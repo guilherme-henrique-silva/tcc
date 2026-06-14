@@ -8,6 +8,7 @@ processá-lo.
 
 A implementação segue **Arquitetura Hexagonal** (ports & adapters) e
 **Object Calisthenics**, com backend em **FastAPI** e frontend em **Streamlit**.
+Consulte o [CHANGELOG.md](CHANGELOG.md) para o histórico de iterações.
 
 ---
 
@@ -15,11 +16,14 @@ A implementação segue **Arquitetura Hexagonal** (ports & adapters) e
 
 - **Backend (FastAPI)** — orquestra a pipeline em 6 etapas, cada uma habilitável
   individualmente (feature toggle) e dividida em subetapas tagueadas. Inclui uma etapa
-  de **tratamento de notícias** (manual ou via **LLM** em ports & adapters).
+  de **tratamento de notícias** (manual ou via **LLM** em ports & adapters) e enum
+  `VramTier` para categorização automática de modelos por memória gráfica.
 - **Frontend (Streamlit)** — coleta manual de links (`streamlit-tags`), seleção de
-  etapas por **checkbox**, **modo escuro** alternável, página de **tratamento de
-  notícias** (editor de código ou LLM, com validação lado a lado), progresso aninhado
-  (`stqdm`) e linha do tempo de notícias negativas (`streamlit-timeline`).
+  etapas por **checkbox** (com mapa de dependências entre etapas), **tema claro e
+  escuro** com paleta configurável, página de **tratamento de notícias** (editor de
+  código sempre visível, com template, ou via **LLM** com status no próprio selectbox),
+  progresso aninhado (`stqdm`) e linha do tempo de notícias negativas
+  (`streamlit-timeline`).
 - **Persistência (SQLite)** — features, resultados de validação/Granger, controle de
   execução por UUID (`PIPELINE_PROC_ID`), processamento de notícias (`PIPELINE_PROC_NEWS`)
   e documentos tratados (`PIPELINE_TREATED_NEWS`).
@@ -80,10 +84,11 @@ Cada etapa habilitada executa; cada etapa desabilitada retorna
 (`stage_name`, `substage_name`, `order`, `total`) consumida pelo `stqdm` no frontend.
 
 - **Selic e dólar**: recuperados em tempo real da **API do Banco Central** (SGS 11 e
-  PTAX) via `BcbApiAdapter`/`httpx`, parametrizados por variáveis de ambiente — sem
-  mocks.
+  PTAX) via `BcbApiAdapter`/`httpx`. Para períodos **≥ 1 ano**, o método
+  `DateRange.split(max_days=365)` divide o intervalo em janelas consecutivas e o
+  adapter itera cada janela de-duplicando por data — sem limite de período.
 - **Datas**: lidas exclusivamente do `.env` (`Config.date_range()`), nunca de
-  literais no código.
+  literais no código; a data final nunca ultrapassa `date.today()` (validação no frontend).
 
 ### Endpoints da API (`/api`)
 
@@ -114,16 +119,28 @@ só no rótulo do sidebar). Cada página traz um **bloco de contexto de negócio
 respeita o **modo escuro** alternável no sidebar.
 
 1. **Upload de Dados** — input em lote dos links (`streamlit-tags`) + de-duplicação
-   contra `PIPELINE_PROC_NEWS`.
-2. **Executar Pipeline** — seleção das etapas por **checkbox** (feature toggle), opção de
-   tratar pendentes via LLM, progresso aninhado com `stqdm` (etapa → subetapa, razão
-   `ordem/total`) e **retentativa** por etapa em falha.
-3. **Tratamento de Notícias** — converte o link sob demanda, trata manualmente
-   (`streamlit-code-editor`) ou via **LLM** (selectbox de modelos por VRAM + status em
-   disco), com **validação lado a lado** (original × tratado) não-bloqueante.
+   contra `PIPELINE_PROC_NEWS`; checkbox para **Google CSE** (exibe campo de ID
+   condicionalmente); aba CSV com tabela de colunas esperadas e aviso de descarte.
+2. **Executar Pipeline** — seleção de etapas por **checkbox** com mapa de dependências
+   (etapas obrigatórias fixas; opcionais desabilitadas enquanto pré-requisito estiver
+   desmarcado); progresso aninhado com `stqdm`; **UUID da execução** exibido ao final;
+   **retentativa** por etapa em falha. Configuração de LLM fica exclusivamente na tela
+   de Tratamento.
+3. **Tratamento de Notícias** — editor `streamlit-code-editor` **sempre visível** (com
+   template de frontmatter quando nenhuma notícia foi convertida); trata manualmente ou
+   via **LLM** (selectbox com status integrado ao label: `Nome (✅ pronto)`); validação
+   lado a lado (original × tratado) não-bloqueante; aviso de conformidade de template.
 4. **Visualizar Features** / **Validação** / **Análise Exploratória**.
 7. **Timeline BBAS3** — `streamlit-timeline` com as notícias de sentimento negativo
    coincidentes com queda de BBAS3.
+
+**Tema**: paleta configurável (7 papéis de cor) em `frontend/components/theme.py`, com
+instâncias separadas `_LIGHT` e `_DARK`. Ambos os modos estão funcionais; o toggle
+persiste entre páginas via `st.session_state`.
+
+**Restrições de data**: a data final (aba Ações e sidebar) nunca ultrapassa `date.today()`;
+a data inicial do sidebar não pode ser anterior à data inicial da aba Ações — violações
+são corrigidas automaticamente com `st.warning`.
 
 Bibliotecas: `stqdm` (progresso), `streamlit-tags` (links), `streamlit-code-editor`
 (editor de tratamento), `streamlit-timeline` (linha do tempo).

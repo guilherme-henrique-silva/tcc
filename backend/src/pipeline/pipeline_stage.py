@@ -20,7 +20,7 @@ class PipelineStageResult:
 
 @dataclass(frozen=True)
 class SubStageTag:
-    """Identifica uma subetapa para fins de progresso e logging (Seção 3 do spec)."""
+    """Identifica uma subetapa para fins de progresso e logging."""
 
     stage_name: str
     substage_name: str
@@ -132,7 +132,7 @@ class PipelineStage(ABC):
         )
 
     def create_skipped_result(self) -> PipelineStageResult:
-        """Create skipped result for a disabled stage (Seção 2 do spec)."""
+        """Create skipped result for a disabled stage."""
         now = datetime.now()
         return PipelineStageResult(
             stage_name=self.stage_name,

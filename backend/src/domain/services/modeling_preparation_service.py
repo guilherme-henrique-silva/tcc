@@ -1,4 +1,4 @@
-"""Modeling Preparation Service - Tópico 2.6."""
+"""Modeling Preparation Service — preparação de datasets para modelagem."""
 
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Optional
@@ -40,7 +40,7 @@ class TrainTestSplit:
 
 
 class ModelingPreparationService:
-    """Service for preparing data for modeling (Tópico 2.6)."""
+    """Service for preparing data for modeling."""
     
     def __init__(self):
         """Initialize service."""

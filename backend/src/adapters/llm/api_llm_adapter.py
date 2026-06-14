@@ -1,4 +1,4 @@
-"""ApiLlmAdapter - tratamento via Pydantic AI multiprovider (Seção 11 do spec)."""
+"""ApiLlmAdapter — tratamento via Pydantic AI multiprovider."""
 
 from typing import Optional
 
@@ -9,7 +9,7 @@ class ApiLlmAdapter(LlmPort):
     """Chama uma LLM na nuvem via Pydantic AI; provider/modelo vêm de configuração.
 
     O `Agent` é construído preguiçosamente para não exigir credenciais no import.
-    Nos testes injeta-se um `Agent` com `TestModel` (sem rede) — Seção 13.
+    Nos testes injeta-se um `Agent` com `TestModel` (sem rede) para evitar chamadas reais.
     """
 
     def __init__(self, provider: str, model: str, *, agent: Optional[object] = None):

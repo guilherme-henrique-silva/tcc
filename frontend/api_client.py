@@ -28,7 +28,7 @@ class APIClient:
         return response.json()
 
     def get_proc_news(self, url: str) -> Optional[Dict]:
-        """Return the PIPELINE_PROC_NEWS record for a URL, or None (Seção 8.5)."""
+        """Return the PIPELINE_PROC_NEWS record for a URL, or None."""
         response = requests.get(
             f"{self.base_url}/api/pipeline/proc_news",
             params={"url": url},
@@ -102,7 +102,7 @@ class APIClient:
         return response.json()
 
     def health_check_db(self) -> Dict:
-        """Check database connectivity, returning status + reason on failure (Seção 7)."""
+        """Check database connectivity, returning status + reason on failure."""
         response = requests.get(
             f"{self.base_url}/health/db",
             timeout=5,
@@ -111,7 +111,7 @@ class APIClient:
         return response.json()
 
     def convert_link(self, url: str) -> Dict:
-        """Convert a single news link into Markdown on demand (Seção 10)."""
+        """Convert a single news link into Markdown on demand."""
         response = requests.post(
             f"{self.base_url}/api/pipeline/convert_link",
             json={"url": url},
@@ -121,7 +121,7 @@ class APIClient:
         return response.json()
 
     def treat_news(self, markdown: str, model_path: Optional[str] = None) -> str:
-        """Treat one news Markdown via the configured LLM (Seções 10/11)."""
+        """Treat one news Markdown via the configured LLM."""
         response = requests.post(
             f"{self.base_url}/api/pipeline/treat_news",
             json={"markdown": markdown, "model_path": model_path},
@@ -136,7 +136,7 @@ class APIClient:
         treated_markdown: str,
         proc_id: Optional[str] = None,
     ) -> Dict:
-        """Persist a treated news document edited/validated in the UI (Seção 10)."""
+        """Persist a treated news document edited/validated in the UI."""
         response = requests.post(
             f"{self.base_url}/api/pipeline/treated_news",
             json={"url": url, "treated_markdown": treated_markdown, "proc_id": proc_id},
@@ -146,7 +146,7 @@ class APIClient:
         return response.json()
 
     def get_treated_news(self, url: str) -> Optional[Dict]:
-        """Return the treated news document for a URL, or None (Seção 10)."""
+        """Return the treated news document for a URL, or None."""
         response = requests.get(
             f"{self.base_url}/api/pipeline/treated_news",
             params={"url": url},
@@ -156,7 +156,7 @@ class APIClient:
         return response.json()
 
     def list_llm_models(self) -> List[Dict]:
-        """List the LLM_MODELS catalog with on-disk status (Seção 12)."""
+        """List the LLM_MODELS catalog with on-disk status."""
         response = requests.get(
             f"{self.base_url}/api/pipeline/llm_models",
             timeout=10,
@@ -165,7 +165,7 @@ class APIClient:
         return response.json()
 
     def download_model(self, model_path: str) -> Dict:
-        """Trigger an on-demand download of the selected model (Seção 12)."""
+        """Trigger an on-demand download of the selected model."""
         response = requests.post(
             f"{self.base_url}/api/pipeline/download_model",
             json={"model_path": model_path},

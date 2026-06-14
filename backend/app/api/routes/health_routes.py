@@ -25,7 +25,7 @@ async def health_check():
 
 @router.get("/health/db", response_model=DbHealthResponse)
 async def health_check_db():
-    """Check database connectivity, reporting the failure reason (Seção 7 do spec)."""
+    """Check database connectivity, reporting the failure reason."""
     reason = SQLiteStorage(Config.DATABASE_URL).check_connection()
 
     if reason:

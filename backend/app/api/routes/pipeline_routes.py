@@ -38,7 +38,7 @@ router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 # In-memory job store (replace with database in production)
 JOBS_STORE = {}
 
-# Downloads de modelos em andamento (Seção 12): alimentam o status "🔁 baixando".
+# Downloads de modelos em andamento — alimentam o status "🔁 baixando".
 _DOWNLOADS_IN_PROGRESS: Set[str] = set()
 _DOWNLOADS_LOCK = threading.Lock()
 
@@ -51,11 +51,7 @@ _pipeline = DataPipeline(_config, _checkpoint_manager, _container)
 
 @router.post("/execute", response_model=PipelineRunResponse)
 async def execute_pipeline(request: PipelineExecuteRequest):
-    """
-    Execute the data pipeline synchronously honoring the feature toggle (Seção 2).
-
-    Returns per-stage SUCCESS/SKIPPED/FAILED statuses.
-    """
+    """Execute the data pipeline synchronously, retornando status por etapa."""
     return_early_if_invalid = _validate_request(request)
     if return_early_if_invalid:
         raise HTTPException(
@@ -83,7 +79,7 @@ async def execute_pipeline(request: PipelineExecuteRequest):
 
 @router.get("/proc_news", response_model=Optional[ProcNewsDTO])
 async def get_proc_news(url: str):
-    """Return the PIPELINE_PROC_NEWS record for a URL, if present (Seção 9)."""
+    """Return the PIPELINE_PROC_NEWS record for a URL, if present."""
     record = _container.get_storage().get_proc_news(url)
 
     if not record:
@@ -94,7 +90,7 @@ async def get_proc_news(url: str):
 
 @router.post("/convert_link", response_model=ConvertLinkResponse)
 async def convert_link(request: ConvertLinkRequest):
-    """Convert a single news link into Markdown on demand for the treatment UI (Seção 10)."""
+    """Converte um link de notícia em Markdown sob demanda para a UI de tratamento."""
     converter = _container.get_docling_converter()
     site = converter.site_name(request.url)
 
@@ -112,7 +108,7 @@ async def convert_link(request: ConvertLinkRequest):
 
 @router.post("/treat_news", response_model=TreatNewsResponse)
 async def treat_news(request: TreatNewsRequest):
-    """Treat one news Markdown via the configured LLM adapter (Seções 10/11)."""
+    """Trata um Markdown de notícia via o adapter de LLM configurado."""
     from src.adapters.llm import PROMPT_TRATAMENTO_NOTICIAS
 
     llm = _container.get_llm(request.model_path)
@@ -123,7 +119,7 @@ async def treat_news(request: TreatNewsRequest):
 
 @router.post("/treated_news", response_model=TreatedNewsDTO)
 async def save_treated_news(request: TreatedNewsSaveRequest):
-    """Persist a treated news document edited/validated in the UI (Seção 10)."""
+    """Persiste um documento de notícia tratado/validado na UI."""
     record = TreatedNewsRecord.from_treated_markdown(
         url=request.url,
         treated_markdown=request.treated_markdown,
@@ -136,7 +132,7 @@ async def save_treated_news(request: TreatedNewsSaveRequest):
 
 @router.get("/treated_news", response_model=Optional[TreatedNewsDTO])
 async def get_treated_news(url: str):
-    """Return the treated news document for a URL, if present (Seção 10)."""
+    """Retorna o documento tratado de uma URL, se existir."""
     record = _container.get_storage().get_treated_news(url)
 
     if not record:
@@ -147,7 +143,7 @@ async def get_treated_news(url: str):
 
 @router.get("/llm_models", response_model=List[LlmModelDTO])
 async def list_llm_models():
-    """List the LLM_MODELS catalog with each model's on-disk status (Seção 12)."""
+    """Lista o catálogo de modelos locais com status em disco."""
     from src.adapters.llm.catalog import list_with_status
 
     enriched = list_with_status(
@@ -156,12 +152,14 @@ async def list_llm_models():
         _downloads_in_progress(),
     )
 
+    from src.adapters.llm.vram_tier import VramTier
+
     return [
         LlmModelDTO(
             name=str(model.get("name", "")),
             path=str(model.get("path", "")),
             vram=str(model.get("vram", "")),
-            best_use=str(model.get("best_use", "")),
+            best_use=VramTier.from_vram_string(model.get("vram", "")).recommendation,
             status=model["status"],
         )
         for model in enriched
@@ -170,7 +168,7 @@ async def list_llm_models():
 
 @router.post("/download_model", response_model=DownloadModelResponse)
 async def download_model(request: DownloadModelRequest):
-    """Start downloading the selected model on demand, never before start (Seção 12)."""
+    """Inicia o download do modelo selecionado sob demanda, nunca antes do início."""
     download_status = _start_model_download(request.model_path)
 
     return DownloadModelResponse(
@@ -240,13 +238,13 @@ async def list_checkpoints():
 # Helper functions (Rule 7: Keep methods small)
 
 def _downloads_in_progress() -> Set[str]:
-    """Snapshot of model paths currently downloading (Seção 12)."""
+    """Snapshot dos caminhos de modelos em download."""
     with _DOWNLOADS_LOCK:
         return set(_DOWNLOADS_IN_PROGRESS)
 
 
 def _start_model_download(model_path: str) -> str:
-    """Start a background download of the selected model, if needed (Seção 12)."""
+    """Inicia o download em background do modelo selecionado, se necessário."""
     from src.adapters.llm.catalog import (
         find_by_path,
         repo_id_for,

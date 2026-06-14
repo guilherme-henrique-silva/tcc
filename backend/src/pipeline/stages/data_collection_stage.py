@@ -27,7 +27,7 @@ class DataCollectionStage(PipelineStage):
         self.tickers = tickers
 
     def substages(self) -> List[str]:
-        """Subetapas em ordem (Seção 3 do spec)."""
+        """Subetapas em ordem."""
         return ["coletar_precos", "consolidar_noticias"]
 
     def execute(

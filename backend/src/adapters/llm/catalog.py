@@ -1,4 +1,4 @@
-"""Catálogo de modelos locais e detecção de status em disco (Seção 12 do spec)."""
+"""Catálogo de modelos locais e detecção de status em disco."""
 
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -24,7 +24,7 @@ def resolve_local_dir(models_dir: str, path: str) -> Path:
 
 
 def disk_status(models_dir: str, path: str, in_progress: Iterable[str]) -> str:
-    """Determine the on-disk status of a single model (Seção 12)."""
+    """Determine the on-disk status of a single model."""
     if path in set(in_progress):
         return STATUS_DOWNLOADING
 
@@ -40,7 +40,7 @@ def list_with_status(
     models_dir: str,
     in_progress: Iterable[str],
 ) -> List[Dict[str, str]]:
-    """Append the on-disk status to each catalog entry (Seção 12)."""
+    """Append the on-disk status to each catalog entry."""
     in_progress = set(in_progress)
     enriched = []
 

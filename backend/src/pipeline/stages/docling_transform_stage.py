@@ -22,7 +22,7 @@ class DoclingTransformStage(PipelineStage):
         self.repo = proc_news_repo            # acesso à tabela PIPELINE_PROC_NEWS
 
     def substages(self) -> List[str]:
-        """Subetapas em ordem (Seção 3 do spec)."""
+        """Subetapas em ordem."""
         return ["validar_links", "converter_markdown", "registrar_proc_news"]
 
     def validate(self) -> bool:

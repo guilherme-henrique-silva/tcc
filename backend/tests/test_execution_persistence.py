@@ -19,7 +19,7 @@ def _raw_path(db_url: str) -> str:
 
 
 class TestExecutionPersistence:
-    """Cobertura das novas tabelas e da migração idempotente (Seções 9/10)."""
+    """Cobertura das novas tabelas e da migração idempotente."""
 
     def test_pipeline_proc_create_and_finish(self, storage, db_url):
         start = datetime(2026, 6, 12, 10, 0, 0)

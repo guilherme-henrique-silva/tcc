@@ -48,11 +48,11 @@ class Config:
         "BBAS3.SA,ITUB4.SA,BBDC4.SA,SANB11.SA"
     ).split(",")
 
-    # Date range (Seção 7: lido do .env, sem default fixo de ano)
+    # Date range — lido do .env, sem default fixo de ano
     DATE_START = os.getenv("DATE_START")
     DATE_END = os.getenv("DATE_END")
 
-    # Banco Central (Seção 6): endpoints parametrizados por variáveis de ambiente
+    # Banco Central — endpoints parametrizados por variáveis de ambiente
     API_BCB_SELIC = os.getenv("API_BCB_SELIC", "")
     API_BCB_DOLAR = os.getenv("API_BCB_DOLAR", "")
     DATA_INICIAL_SELIC = os.getenv("DATA_INICIAL_SELIC")
@@ -66,17 +66,17 @@ class Config:
     ANOMALY_STD_THRESHOLD = float(os.getenv("ANOMALY_STD_THRESHOLD", "2.0"))
     TFIDF_COMPONENTS = int(os.getenv("TFIDF_COMPONENTS", "20"))
 
-    # LLM (Seções 11–12): tratamento de notícias via modelo local (HF) ou API.
+    # LLM — tratamento de notícias via modelo local (HF) ou API.
     LLM_BACKEND = os.getenv("LLM_BACKEND", "api")              # "local" | "api"
     LLM_MODELS_DIR = os.getenv("LLM_MODELS_DIR", str(_REPO_ROOT / "llm-models"))
     LLM_API_PROVIDER = os.getenv("LLM_API_PROVIDER", "anthropic")
     LLM_API_MODEL = os.getenv("LLM_API_MODEL", "claude-sonnet-4-6")
-    # Catálogo de modelos locais (JSON), sem nomes hardcoded (Seção 12).
+    # Catálogo de modelos locais (JSON), sem nomes hardcoded.
     LLM_MODELS = os.getenv("LLM_MODELS", "[]")
 
     @classmethod
     def llm_models(cls) -> List[Dict[str, str]]:
-        """Parse o catálogo LLM_MODELS (JSON) tolerando valor ausente/ inválido (Seção 12)."""
+        """Parse o catálogo LLM_MODELS (JSON) tolerando valor ausente/inválido."""
         raw = (cls.LLM_MODELS or "").strip()
         if not raw:
             return []
@@ -93,10 +93,10 @@ class Config:
 
     @classmethod
     def date_range(cls) -> Tuple[date, date]:
-        """Parse DATE_START/DATE_END (ISO `YYYY-MM-DD`) from the environment.
+        """Parse DATE_START/DATE_END (ISO YYYY-MM-DD) do ambiente.
 
-        Single source of truth shared by backend and frontend (Seção 7 do spec).
-        Raises ValueError if the variables are not defined.
+        Fonte única de verdade compartilhada por backend e frontend.
+        Levanta ValueError se as variáveis não estiverem definidas.
         """
         start = cls._parse_iso_date(cls.DATE_START, "DATE_START")
         end = cls._parse_iso_date(cls.DATE_END, "DATE_END")
@@ -104,10 +104,10 @@ class Config:
 
     @staticmethod
     def _parse_iso_date(value: Optional[str], var_name: str) -> date:
-        """Parse an ISO date string, failing loudly when missing (Rule 1)."""
+        """Parse an ISO date string, failing loudly when missing."""
         if not value:
             raise ValueError(
-                f"Environment variable {var_name} is not set (see .env / Seção 7)"
+                f"Environment variable {var_name} is not set (see .env)"
             )
 
         return datetime.strptime(value, "%Y-%m-%d").date()

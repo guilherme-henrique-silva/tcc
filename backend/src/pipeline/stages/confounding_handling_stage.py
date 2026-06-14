@@ -22,7 +22,7 @@ class ConfoundingHandlerStage(PipelineStage):
         self.service = ConfoundingHandlerService()
 
     def substages(self) -> List[str]:
-        """Subetapas em ordem (Seção 3 do spec)."""
+        """Subetapas em ordem."""
         return ["coletar_selic", "coletar_dolar", "coletar_commodities", "teste_granger"]
 
     def execute(

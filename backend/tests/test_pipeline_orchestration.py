@@ -20,7 +20,7 @@ class TestDataPipeline:
         """Test pipeline initializes with all stages."""
         assert self.pipeline is not None
         # 6 stages: docling_transform + news_treatment + data_collection
-        # + feature_engineering + confounding_handling + modeling_preparation (Seções 1/10).
+        # + feature_engineering + confounding_handling + modeling_preparation.
         assert len(self.pipeline._stages) == 6
         assert self.pipeline.pipeline_id is not None
 
@@ -138,6 +138,81 @@ class TestDataPipeline:
 
         assert llm is not None
         assert hasattr(llm, "treat_news")
+
+
+class TestDateRangeSplit:
+    """DateRange.split(): chunking de período sem sobreposição."""
+
+    def test_period_shorter_than_max_returns_self(self):
+        from datetime import date
+        from backend.src.domain.value_objects.date_range import DateRange
+
+        dr = DateRange(date(2025, 1, 1), date(2025, 6, 30))
+        chunks = dr.split(max_days=365)
+
+        assert chunks == [dr]
+
+    def test_period_exactly_max_days_returns_self(self):
+        from datetime import date
+        from backend.src.domain.value_objects.date_range import DateRange
+
+        start = date(2025, 1, 1)
+        end = date(2025, 12, 31)
+        dr = DateRange(start, end)
+        chunks = dr.split(max_days=365)
+
+        assert chunks == [dr]
+
+    def test_period_one_day_over_splits_into_two(self):
+        from datetime import date
+        from backend.src.domain.value_objects.date_range import DateRange
+
+        start = date(2024, 1, 1)
+        end = date(2025, 1, 1)  # 366 dias (ano bissexto 2024)
+        dr = DateRange(start, end)
+        chunks = dr.split(max_days=365)
+
+        assert len(chunks) == 2
+
+    def test_chunks_are_non_overlapping(self):
+        from datetime import date, timedelta
+        from backend.src.domain.value_objects.date_range import DateRange
+
+        dr = DateRange(date(2023, 1, 1), date(2025, 12, 31))
+        chunks = dr.split(max_days=365)
+
+        for i in range(len(chunks) - 1):
+            assert chunks[i].end_date + timedelta(days=1) == chunks[i + 1].start_date
+
+    def test_chunks_cover_full_interval(self):
+        from datetime import date
+        from backend.src.domain.value_objects.date_range import DateRange
+
+        dr = DateRange(date(2022, 3, 15), date(2025, 9, 20))
+        chunks = dr.split(max_days=365)
+
+        assert chunks[0].start_date == dr.start_date
+        assert chunks[-1].end_date == dr.end_date
+
+    def test_no_chunk_exceeds_max_days(self):
+        from datetime import date
+        from backend.src.domain.value_objects.date_range import DateRange
+
+        dr = DateRange(date(2020, 1, 1), date(2025, 12, 31))
+        max_days = 365
+        chunks = dr.split(max_days=max_days)
+
+        for chunk in chunks:
+            assert chunk.days_count <= max_days
+
+    def test_single_day_range_returns_self(self):
+        from datetime import date
+        from backend.src.domain.value_objects.date_range import DateRange
+
+        dr = DateRange(date(2025, 6, 1), date(2025, 6, 1))
+        chunks = dr.split(max_days=365)
+
+        assert chunks == [dr]
 
 
 if __name__ == "__main__":

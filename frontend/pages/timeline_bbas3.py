@@ -1,4 +1,4 @@
-"""Página - Timeline de notícias negativas de BBAS3 (Seção 5 do spec)."""
+"""Página — Linha do tempo de notícias negativas de BBAS3."""
 
 import streamlit as st
 from streamlit_timeline import timeline

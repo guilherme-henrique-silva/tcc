@@ -1,4 +1,4 @@
-"""News Treatment Stage - trata as notícias (manual/LLM) após o Docling (Seção 10)."""
+"""News Treatment Stage - trata as notícias (manual/LLM) após o Docling."""
 
 from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
@@ -22,7 +22,7 @@ class NewsTreatmentStage(PipelineStage):
     Modelo "página dedicada + stage consumidora" (decisão de projeto): o tratamento
     interativo (manual/LLM, validação lado a lado) acontece na página de Tratamento;
     aqui a etapa consome os documentos tratados persistidos e, quando o modo LLM está
-    ativo, trata automaticamente os registros ainda pendentes (Seção 10 do spec).
+    ativo, trata automaticamente os registros ainda pendentes.
     """
 
     def __init__(self, storage, llm_provider: LlmProvider):
@@ -32,7 +32,7 @@ class NewsTreatmentStage(PipelineStage):
         self._llm_provider = llm_provider
 
     def substages(self) -> List[str]:
-        """Subetapas em ordem (Seção 3 do spec)."""
+        """Subetapas em ordem."""
         return ["selecionar_registros", "tratar_llm", "persistir_tratados"]
 
     def validate(self) -> bool:

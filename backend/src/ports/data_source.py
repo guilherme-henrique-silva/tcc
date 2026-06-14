@@ -60,7 +60,7 @@ class DataSourcePort(ABC):
         date_range: DateRange,
     ) -> List[MacroeconomicIndicator]:
         """
-        Fetch macroeconomic indicators (Tópico 2.5).
+        Fetch macroeconomic indicators.
         
         Args:
             indicators: List of indicator names (Selic, USD/BRL, etc)
@@ -92,10 +92,10 @@ class StoragePort(ABC):
 
     @abstractmethod
     def save_granger_test_results(self, results: Dict) -> None:
-        """Save Granger test results (Tópico 2.5)."""
+        """Save Granger test results."""
         pass
 
-    # --- Rastreabilidade de execução (Seção 9 do spec) ----------------------
+    # --- Rastreabilidade de execução ----------------------
 
     @abstractmethod
     def save_proc_news(self, record: ProcNewsRecord) -> None:
@@ -117,7 +117,7 @@ class StoragePort(ABC):
         """Stamp PROC_TS_END on the PIPELINE_PROC_ID row when execution ends."""
         pass
 
-    # --- Documentos tratados (Seção 10 do spec) -----------------------------
+    # --- Documentos tratados -----------------------------
 
     @abstractmethod
     def save_treated_news(self, record: TreatedNewsRecord) -> None:

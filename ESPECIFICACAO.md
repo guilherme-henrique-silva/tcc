@@ -1,451 +1,453 @@
-# Especificação Técnica — Evolução da Pipeline de Análise de Notícias (TCC)
+# Especificação Técnica — Evolução da Pipeline (Iteração 2)
 
-> Documento derivado de [PROMPT_TO_SPEC.md](PROMPT_TO_SPEC.md). Formaliza os 13 requisitos
+> Documento derivado de [PROMPT_TO_SPEC.md](PROMPT_TO_SPEC.md). Formaliza os 10 requisitos
 > informais em requisitos rastreáveis com critérios de aceite, referenciando o código atual.
 > Princípios mantidos em toda a implementação: **Arquitetura Hexagonal (Ports & Adapters)**,
 > **Clean Code**, **Object Calisthenics** e **otimização de CPU/GPU**.
+>
+> A iteração anterior (dark mode, renomeação de páginas, banco sem Docker, etapa de tratamento,
+> LLM hexagonal, etc.) já está implementada e registrada no histórico do
+> [CHANGELOG.md](CHANGELOG.md).
 
 ## Índice
 
-1. [Visão geral e objetivos](#1-visão-geral-e-objetivos)
-2. [Avaliação de refatoração da pipeline](#2-avaliação-de-refatoração-da-pipeline-requisito-1)
-3. [UI — Dark mode](#3-ui--dark-mode-requisito-2)
-4. [UI — Renomeação das páginas](#4-ui--renomeação-das-páginas-requisito-3)
-5. [UI — Tradução PT-BR e blocos de domínio](#5-ui--tradução-pt-br-e-blocos-de-domínio-requisito-4)
-6. [Conexão com banco sem Docker](#6-conexão-com-banco-sem-docker-requisito-5)
-7. [Feedback visual de conexão ao banco](#7-feedback-visual-de-conexão-ao-banco-requisito-6)
-8. [Seleção de etapas por checkbox](#8-seleção-de-etapas-por-checkbox-requisito-7)
-9. [UUID e tabelas de execução](#9-uuid-e-tabelas-de-execução-requisito-8)
-10. [Nova etapa de tratamento de notícias](#10-nova-etapa-de-tratamento-de-notícias-requisito-9)
-11. [LLM em arquitetura hexagonal](#11-llm-em-arquitetura-hexagonal-requisitos-10-e-11)
-12. [Modelos locais por VRAM](#12-modelos-locais-por-vram-requisito-12)
-13. [Testes](#13-testes-requisito-13)
-14. [Documentação](#14-documentação-requisito-13)
-15. [Variáveis de ambiente](#15-variáveis-de-ambiente)
-16. [Critérios de aceite globais](#16-critérios-de-aceite-globais)
+1. [Visão geral e escopo](#1-visão-geral-e-escopo)
+2. [R1 — Avaliação de refatoração da pipeline](#2-r1--avaliação-de-refatoração-da-pipeline)
+3. [R2 — Esquema de cores configurável e correção do light mode](#3-r2--esquema-de-cores-configurável-e-correção-do-light-mode)
+4. [R3 — Restrições de seleção de datas](#4-r3--restrições-de-seleção-de-datas)
+5. [R4 — Chunking de período nas APIs (BCB e yfinance)](#5-r4--chunking-de-período-nas-apis-bcb-e-yfinance)
+6. [R5 — Tela de coleta de notícias](#6-r5--tela-de-coleta-de-notícias)
+7. [R6 — Tela de executar pipeline](#7-r6--tela-de-executar-pipeline)
+8. [R7 — Tela de tratamento de notícias](#8-r7--tela-de-tratamento-de-notícias)
+9. [R8 — Remoção de números de seção](#9-r8--remoção-de-números-de-seção)
+10. [R9 — Atualização de testes](#10-r9--atualização-de-testes)
+11. [R10 — Documentação (README e CHANGELOG)](#11-r10--documentação-readme-e-changelog)
+12. [Variáveis de ambiente](#12-variáveis-de-ambiente)
+13. [Critérios de aceite globais](#13-critérios-de-aceite-globais)
 
 ---
 
-## 1. Visão geral e objetivos
+## 1. Visão geral e escopo
 
 O projeto é uma pipeline de dados para análise do impacto de notícias sobre o preço da ação
-**BBSA3** (Banco do Brasil) e concorrentes (ITUB4, BBDC4, SANB11), descrita no
-[PLANO_DE_ACAO.md](PLANO_DE_ACAO.md). A arquitetura atual já separa:
+**BBAS3** (Banco do Brasil) e concorrentes (ITUB4, BBDC4, SANB11), descrita no
+[PLANO_DE_ACAO.md](PLANO_DE_ACAO.md). A arquitetura já separa **Backend** (FastAPI + hexagonal,
+orquestrador [pipeline.py](backend/src/pipeline/pipeline.py)) e **Frontend** (Streamlit,
+[app.py](frontend/app.py) + [frontend/pages/](frontend/pages/)).
 
-- **Backend** (FastAPI + hexagonal): orquestrador [pipeline.py](backend/src/pipeline/pipeline.py),
-  etapas em [backend/src/pipeline/stages/](backend/src/pipeline/stages/), ports em
-  [backend/src/ports/](backend/src/ports/), adapters em [backend/src/adapters/](backend/src/adapters/).
-- **Frontend** (Streamlit): [frontend/app.py](frontend/app.py) e [frontend/pages/](frontend/pages/).
-
-### Escopo desta evolução
-Esta especificação cobre os requisitos 1–13 do prompt: refatoração incremental, dark mode,
-renomeação de páginas, tradução PT-BR com contexto de negócio, configuração de banco sem Docker,
-feedback de conexão, seleção por checkbox, rastreabilidade por UUID, etapa de tratamento de
-notícias (manual ou LLM), LLM em arquitetura hexagonal, modelos locais por VRAM, testes e docs.
+### Escopo desta iteração
+Os 10 requisitos abaixo: avaliação de refatoração, esquema de cores configurável e correção do
+light mode, restrições de datas, chunking de período nas APIs, ajustes na coleta de notícias
+(Docling, Google CSE, padrão de CSV), melhorias na tela de execução, ajustes no tratamento de
+notícias (editor com template, status no selectbox, enum de VRAM), remoção de números de seção,
+atualização de testes e documentação.
 
 ### Fora de escopo
-- **A coleta de notícias permanece manual** (limitação técnica da Seção 2.1 do plano): o usuário
-  cola links na página de upload; nenhum crawler/scraper automatizado será criado.
-- Modelagem de ML (Seção 2.6 do plano) não é alterada por esta evolução.
+- **A coleta de notícias permanece manual** (limitação técnica do plano): o usuário cola links na
+  página de upload; nenhum crawler/scraper automatizado será criado.
+- A modelagem de ML não é reescrita — apenas avaliada (R1).
 
 ---
 
-## 2. Avaliação de refatoração da pipeline (requisito 1)
+## 2. R1 — Avaliação de refatoração da pipeline
 
-Análise do estado atual e veredito sobre necessidade de refatoração.
+Análise da pipeline atual (estrutura e metodologia de ML) e veredito sobre necessidade de
+refatoração, considerando o escopo do TCC.
 
-### Achados
-1. **Persistência de execução ausente.** [pipeline.py](backend/src/pipeline/pipeline.py) gera um
-   `self.pipeline_id = str(uuid.uuid4())` por instância, mas **não grava** início/fim em lugar
-   nenhum. → Resolvido pelo requisito 8 (tabela `PIPELINE_PROC_ID`).
-2. **Processadores NLP órfãos.** O [DependencyContainer](backend/src/pipeline/dependency_container.py)
-   expõe `get_sentiment_analyzer`, `get_entity_extractor` e `get_tfidf_processor`, mas **nenhuma
-   stage os injeta/usa** (a `FeatureEngineeringStage` é instanciada sem dependências em
-   [pipeline.py:181-188](backend/src/pipeline/pipeline.py#L181-L188)). → Registrar como dívida
-   técnica; a etapa de tratamento (req. 9) e a engenharia de features deverão consumi-los.
-3. **Falta de etapa de tratamento.** Após [docling_transform_stage.py](backend/src/pipeline/stages/docling_transform_stage.py)
-   converter os links em Markdown, não há limpeza/normalização do texto antes da coleta. →
-   Resolvido pelo requisito 9 (`NewsTreatmentStage`).
-4. **Contrato `StoragePort` divergente da implementação.** O port
-   [data_source.py](backend/src/ports/data_source.py#L71-L117) declara
-   `save_features(features_data, dataset_id, metadata)`, `save_validation_results(results, dataset_id)`
-   e `save_granger_test_results(results, dataset_id)`, mas
-   [sqlite_storage.py](backend/src/adapters/storage/sqlite_storage.py) implementa assinaturas
-   diferentes (sem `metadata`/`dataset_id`) e adiciona `save_proc_news`/`get_proc_news` **fora do
-   port**. → Alinhar port e adapter; incluir os novos métodos de `PIPELINE_PROC_ID` e documentos
-   tratados no contrato.
-5. **`resume_from_checkpoint` é stub** ([pipeline.py:130-154](backend/src/pipeline/pipeline.py#L130-L154))
-   e a página principal exibe métricas estáticas ("🟢 Online", "0"). → Fora do escopo crítico;
-   anotar como melhoria futura.
+### Achados — estrutura
+1. **Hexagonal saudável.** Ports em [backend/src/ports/](backend/src/ports/), adapters em
+   [backend/src/adapters/](backend/src/adapters/) e orquestração em
+   [pipeline.py:199-219](backend/src/pipeline/pipeline.py#L199-L219) estão coerentes; a ordem de
+   etapas (docling → news_treatment → data_collection → feature_engineering → confounding_handling →
+   modeling_preparation) é consistente com os testes de orquestração.
+2. **Merge de saídas por sobrescrita.** `_merge_stage_output`
+   ([pipeline.py:286-297](backend/src/pipeline/pipeline.py#L286-L297)) faz `dict.update`; chaves
+   homônimas (ex.: `news_markdowns`) são sobrescritas pela etapa seguinte — comportamento esperado,
+   manter.
+
+### Achados — metodologia de ML (PLANO_DE_ACAO.md §2.6)
+A metodologia proposta é adequada ao escopo. Ajustes **recomendados** (sem reescrita), a registrar
+como diretriz de implementação futura da etapa de modelagem:
+- **Evitar data leakage temporal.** TF-IDF, normalização/scaler e seleção de features devem ser
+  ajustados **apenas no conjunto de treino** dentro de cada janela de walk-forward; encapsular num
+  `Pipeline` do scikit-learn por fold em vez de transformar o dataset inteiro antes do split.
+- **Baseline antes de modelos complexos.** Estabelecer Regressão Linear / Logística e
+  *naïve forecast* (preço de T-1) como linha de base antes de Random Forest/XGBoost/LSTM; reportar
+  ganho relativo ao baseline, não só RMSE/Acurácia absolutos.
+- **Parcimônia de modelos.** Para a quantidade de dados de ~1 ano diário (~250 observações), LSTM
+  tende a sobreajustar; priorizar modelos lineares regularizados (Ridge/Lasso) e árvores com
+  validação walk-forward, mantendo LSTM como experimento opcional.
+- **Granger como validação, não seleção.** Usar o teste de Granger (p < 0,05) para sustentar a
+  narrativa causal, mantendo as variáveis de controle (Selic, USD/BRL, commodities, IBOV) no modelo
+  independentemente do resultado, para não introduzir viés de seleção.
 
 ### Veredito
-Refatoração **incremental**, não reescrita. A estrutura hexagonal e o Object Calisthenics estão
-saudáveis e devem ser preservados. As mudanças concentram-se em: (a) alinhar o `StoragePort` à
-realidade, (b) inserir a nova etapa de tratamento, (c) adicionar o port de LLM, (d) persistir a
-execução por UUID.
+Refatoração **incremental**, não reescrita. As mudanças desta iteração são localizadas (cores,
+datas, chunking de período, UI de coleta/execução/tratamento, enum de VRAM, limpeza de docstrings).
 
-**Critério de aceite:** seção de avaliação presente no documento, sem alteração de comportamento
-da pipeline além do necessário para os requisitos 8–11; ports e adapters consistentes após as
-mudanças.
+**Critério de aceite:** seção de avaliação presente no documento; as diretrizes de ML registradas;
+nenhuma alteração de comportamento da pipeline além do necessário para R2–R9.
 
 ---
 
-## 3. UI — Dark mode (requisito 2)
+## 3. R2 — Esquema de cores configurável e correção do light mode
 
-Permitir alternar entre **modo claro** (atual) e **modo escuro** dos componentes do Streamlit.
+O **modo claro** atualmente exibe aparência escura/contrastante demais; o **modo escuro** está
+adequado e **não deve ser alterado**.
+
+### Estado atual
+- O tema claro vem de [.streamlit/config.toml](frontend/.streamlit/config.toml)
+  (`primaryColor="#FF6B35"`, `backgroundColor="#FFFFFF"`, `textColor="#262730"`).
+- [theme.py](frontend/components/theme.py) só define `_DARK_CSS`; **não há paleta configurável** nem
+  CSS para o modo claro.
 
 ### Requisitos
-- Toggle no sidebar (ex.: `st.toggle("🌙 Modo escuro")`), presente em todas as páginas.
-- A escolha é persistida em `st.session_state` e mantida ao navegar entre páginas.
-- O tema atual claro está definido em [.streamlit/config.toml](frontend/.streamlit/config.toml)
-  (`primaryColor = "#FF6B35"`, fundo branco). O modo escuro define a paleta complementar
-  (fundo escuro, texto claro), aplicada via tema dinâmico/CSS injetado.
-- Centralizar a lógica num helper reutilizável (ex.: `frontend/components/theme.py`) chamado no
-  topo de cada página.
+- Adicionar um **esquema de cores configurável** com 5 papéis: **primária, secundária, terciária,
+  texto e highlights**, centralizado em [theme.py](frontend/components/theme.py) (ex.: uma
+  `dataclass`/dict `LightPalette`/`DarkPalette`), evitando literais espalhados.
+- **Corrigir o light mode**: aplicar a paleta clara via CSS injetado (análogo ao `_DARK_CSS`),
+  garantindo fundo claro, texto escuro legível e uso comedido da cor primária — corrigindo a
+  aparência escura atual.
+- **Dark mode permanece intacto** (`_DARK_CSS` inalterado).
+- A paleta é a única fonte de verdade das cores; a troca claro/escuro continua pelo toggle existente
+  no sidebar.
 
-**Critério de aceite:** o usuário alterna claro/escuro sem reload manual; a preferência persiste
-entre páginas; nenhum texto fica ilegível em qualquer dos modos.
+**Critério de aceite:** existe uma paleta configurável de 5 papéis; o modo claro exibe cores claras
+e texto legível; o modo escuro permanece como hoje; nenhuma cor é hardcoded fora da paleta.
 
 ---
 
-## 4. UI — Renomeação das páginas (requisito 3)
+## 4. R3 — Restrições de seleção de datas
 
-Arquivos em [frontend/pages/](frontend/pages/) não devem iniciar com números (má prática de
-nomenclatura). O número deve aparecer **apenas** no rótulo do link no sidebar.
+Adicionar restrições e feedback visual aos `st.date_input` do sidebar e da aba "Ações".
 
-### De-para dos arquivos
-| Atual | Novo arquivo | Rótulo no sidebar |
-|---|---|---|
-| `1_upload_dados.py` | `upload_dados.py` | `1 · Upload de Dados` |
-| `2_executar_pipeline.py` | `executar_pipeline.py` | `2 · Executar Pipeline` |
-| `3_visualizar_features.py` | `visualizar_features.py` | `3 · Visualizar Features` |
-| `4_validacao_dados.py` | `validacao_dados.py` | `4 · Validação de Dados` |
-| `5_analise_exploratoria.py` | `analise_exploratoria.py` | `5 · Análise Exploratória` |
-| `6_timeline_bbas3.py` | `timeline_bbas3.py` | `6 · Timeline BBAS3` |
+### Estado atual
+- Sidebar: [app.py:25-31](frontend/app.py#L25-L31), `key="global_date_range"` (tupla início/fim),
+  sem `min_value`/`max_value`.
+- Aba Ações: [upload_dados.py:116-129](frontend/pages/upload_dados.py#L116-L129), sem restrições,
+  grava em `st.session_state.date_range`.
+
+### Requisitos
+1. **Data inicial (sidebar):** `min_value` = **data inicial preenchida na aba Ações** (compartilhada
+   via `st.session_state`). Se a regra for quebrada, exibir **feedback visual** (`st.warning`) e
+   **forçar a seleção para a data mínima**.
+2. **Data final (aba Ações):** se a data selecionada for **maior que a data atual**, **forçar para a
+   data de hoje** e exibir `st.warning` informando que o sistema ajustou a data final.
+3. **Data final (sidebar):** aplicar a **mesma** regra do item 2 (teto na data de hoje, com
+   feedback).
 
 ### Implementação
-- Adotar `st.navigation` + `st.Page(..., title="N · ...")` (declarado em
-  [app.py](frontend/app.py)) para controlar a ordem e os rótulos numerados, já que a renomeação
-  remove a ordenação automática por prefixo numérico do Streamlit.
-- Ajustar `STAGE_LABELS` em [env_config.py](frontend/env_config.py#L36-L42) caso reuse os números,
-  e quaisquer imports/`st.switch_page` que referenciem os nomes antigos.
+- A aba Ações grava a data inicial num `st.session_state` dedicado (ex.: `acoes_start_date`); o
+  sidebar lê esse valor como `min_value`.
+- Centralizar a lógica de "forçar e avisar" num helper reutilizável (ex.: em
+  [frontend/components/](frontend/components/)) para não duplicar entre sidebar e aba Ações.
 
-**Critério de aceite:** nenhum arquivo em `frontend/pages/` começa com dígito; o sidebar continua
-exibindo os números na ordem correta; todas as páginas abrem sem erro de import.
+**Critério de aceite:** a data inicial do sidebar nunca fica abaixo da data inicial da aba Ações
+(com aviso e correção automática); datas finais acima de hoje são corrigidas para hoje com
+`st.warning` em ambos os locais.
 
 ---
 
-## 5. UI — Tradução PT-BR e blocos de domínio (requisito 4)
+## 5. R4 — Chunking de período nas APIs (BCB e yfinance)
 
-Todos os componentes do Streamlit em **PT-BR**, e cada tela ganha um bloco informativo explicando
-o **domínio de negócio** do que está sendo feito, sem presumir conhecimento prévio do usuário.
+Quando a diferença entre data inicial e final for **>= 1 ano**, as requisições à API do BCB devem
+ser **fracionadas** em múltiplas chamadas com janelas de até ~1 ano (ex.: 01/01/2025–31/12/2025;
+15/06/2025–14/06/2026), abrangendo todo o período selecionado.
+
+### Estado atual
+- [bcb_api_adapter.py](backend/src/adapters/data_sources/bcb_api_adapter.py) faz GET direto, **sem
+  chunking**; datas vêm interpoladas das env vars de URL.
+- [date_range.py](backend/src/domain/value_objects/date_range.py) valida `start <= end` e calcula
+  `days_count`, mas **não tem método de divisão**.
+- [yfinance_adapter.py:52-54](backend/src/adapters/data_sources/yfinance_adapter.py#L52-L54) passa
+  `start`/`end` diretos ao yfinance.
 
 ### Requisitos
-- Revisar strings de todas as páginas e de [app.py](frontend/app.py) para PT-BR consistente.
-- Cada página recebe um bloco `st.markdown`/`st.info` no topo, no estilo do exemplo do prompt
-  (derivado das Seções 2.4–2.6 do [PLANO_DE_ACAO.md](PLANO_DE_ACAO.md)). Conteúdo-guia por tela:
-  - **Upload de Dados**: por que a coleta é manual; o que são os links e como viram Markdown.
-  - **Executar Pipeline**: o que cada etapa faz (Docling → Tratamento → Coleta → Features →
-    Confundidores → Preparação) e por que a ordem importa.
-  - **Visualizar Features**: explicação das features de ações/notícias/concorrentes (Seção 2.4).
-  - **Validação de Dados**: o que valida (ranges, completude, correlações) e por quê.
-  - **Análise Exploratória**: leitura dos clusters/PCA/co-movimento (Seção 2.6.a).
-  - **Timeline BBAS3**: relação entre eventos de notícia e movimento de preço (lags T+0/T+1/T+2).
+1. **DateRange:** adicionar método de fracionamento (ex.: `split(max_days=365)` →
+   `list[DateRange]`), respeitando o frozen dataclass e Object Calisthenics. Para período < 1 ano,
+   retorna a si mesmo (lista de 1 elemento); para >= 1 ano, gera janelas consecutivas, inclusivas e
+   sem sobreposição, cobrindo todo o intervalo.
+2. **BcbApiAdapter:** iterar os subintervalos retornados, montar uma requisição por janela e
+   **concatenar/deduplicar** os resultados (Selic e dólar/PTAX) antes de mapear para os DTOs.
+3. **yfinance:** **verificar** a limitação. Para dados **diários** (`interval=1d`) o yfinance não
+   impõe o mesmo teto de ~1 ano (esse limite vale para intervalos intradiários). Portanto:
+   - Se confirmado que não há limitação para o uso diário do projeto, **documentar a não-necessidade**
+     e **reutilizar o mesmo `DateRange.split`** apenas se for desejável padronizar o comportamento.
+   - Caso a verificação revele qualquer truncamento, aplicar a mesma lógica de chunking do BCB.
+4. **Default de datas:** manter **01/01/2025 a 31/12/2025** (já em `.env`/
+   [env_config.py:15-24](frontend/env_config.py#L15-L24)).
 
-**Critério de aceite:** nenhuma string de UI em inglês nas telas; cada página possui bloco de
-contexto de negócio; os textos refletem fielmente a metodologia do plano.
-
----
-
-## 6. Conexão com banco sem Docker (requisito 5)
-
-Executar o banco (SQLite ou outro) via Docker deve ser **opcional**. O projeto deve permitir
-configurar a conexão sem `docker compose`.
-
-### Requisitos
-- `DATABASE_URL` continua sendo a única fonte de verdade em
-  [config.py](backend/app/core/config.py#L29-L32), com default SQLite portátil
-  (`sqlite:///<repo>/data/pipeline.db`) — já funciona standalone.
-- Documentar e validar a execução **local** (sem Docker): backend via `uvicorn` e frontend via
-  `streamlit run`, usando o SQLite em arquivo. O serviço `db` dummy do
-  [docker-compose.yml](docker-compose.yml#L53-L60) deixa de ser pré-requisito.
-- Permitir sobrescrever `DATABASE_URL` por `.env` (ex.: caminho alternativo do arquivo SQLite ou
-  outra base). Atualizar [.env.example](.env.example) com exemplos comentados.
-
-**Critério de aceite:** com Docker parado, `uvicorn` + `streamlit` sobem e a pipeline grava/lê do
-SQLite local; trocar `DATABASE_URL` no `.env` muda o destino sem editar código.
+**Critério de aceite:** períodos >= 1 ano nas requisições ao BCB são quebrados em múltiplas chamadas
+que, somadas, cobrem todo o intervalo, sem buracos nem duplicatas; a verificação do yfinance está
+documentada e a lógica aplicada se necessária; o default permanece 2025-01-01..2025-12-31.
 
 ---
 
-## 7. Feedback visual de conexão ao banco (requisito 6)
+## 6. R5 — Tela de coleta de notícias
 
-Toda tentativa de conexão com o banco emite feedback visual no Streamlit; mensagens de erro
-**citam o motivo** e **desaparecem** quando os processos são executados novamente.
+Ajustes em [upload_dados.py](frontend/pages/upload_dados.py).
 
-### Requisitos
-- Novo endpoint de health do banco no backend (ex.: `GET /health/db`) que tenta abrir a conexão
-  do [SQLiteStorage](backend/src/adapters/storage/sqlite_storage.py) e retorna status + motivo do
-  erro quando falhar. Acompanha o método no `APIClient`
-  ([api_client.py](frontend/api_client.py)).
-- O **mesmo** botão "🔄 Verificar Status" já existente no sidebar
-  ([app.py:42-49](frontend/app.py#L42-L49)) passa a reportar **backend e banco** — **não criar
-  botão novo**.
-- Erros usam `st.empty()`/placeholder para serem **limpos** numa nova tentativa (mesmo padrão já
-  usado em [executar_pipeline.py](frontend/pages/2_executar_pipeline.py#L78-L88) para falhas de
-  etapa).
+### 6.1 Correção semântica do texto do Docling
+- O texto **"Cada link é depois convertido em Markdown pelo Docling"**
+  ([upload_dados.py:16](frontend/pages/upload_dados.py#L16)) está semanticamente incorreto: o que é
+  convertido é o **conteúdo da página** apontada pelo link, não o link em si.
+- A **lógica já está correta** — [docling_converter_adapter.py:30-33](backend/src/adapters/processors/docling_converter_adapter.py#L30-L33)
+  converte `converter.convert(url).document.export_to_markdown()` (o conteúdo). Logo, basta **ajustar
+  o texto** (ex.: "O conteúdo de cada link é convertido em Markdown pelo Docling").
 
-**Critério de aceite:** clicar em "Verificar Status" mostra o estado do backend e do banco; um
-erro de banco exibe o motivo (ex.: arquivo inacessível) e some ao reexecutar; nenhum botão
-adicional é introduzido.
+### 6.2 Checkbox Google CSE
+- Adicionar `st.checkbox` "Usar Google Custom Search Engine (CSE)". Ao marcar, exibir um
+  `st.text_input` para o usuário informar o **ID do mecanismo de pesquisa programável** (parâmetro
+  `cx`), conforme o script HTML do [PLANO_DE_ACAO.md](PLANO_DE_ACAO.md). O ID é capturado apenas após
+  a marcação do checkbox.
 
----
+### 6.3 Aba CSV — padrão de colunas
+- Documentar na aba CSV o **padrão de colunas esperado**, incluindo **nome e tipo**, para que as
+  linhas sejam processadas pelo [csv_news_adapter.py](backend/src/adapters/data_sources/csv_news_adapter.py):
+  | Coluna | Tipo | Obrigatória | Observação |
+  |---|---|---|---|
+  | `date` | data (`YYYY-MM-DD`, `DD/MM/YYYY` ou ISO datetime) | Sim | usada para filtrar pelo período |
+  | `title` | texto | Sim | título da notícia |
+  | `content` | texto | Sim | corpo da notícia |
+  | `source` | texto | Não | default "Unknown" |
+  | `url` | texto | Sim | default vazio |
+  | `sentiment` | inteiro ∈ {-1, 0, 1} | Não | valores fora do conjunto são ignorados |
+- Informar explicitamente que **linhas fora do padrão são desconsideradas** — comportamento que já
+  ocorre (descarte silencioso no adapter, linhas 64/71/90-91/119-126). Adaptar a lógica apenas se
+  for desejável **reportar** quantas linhas foram descartadas (feedback ao usuário).
 
-## 8. Seleção de etapas por checkbox (requisito 7)
-
-Trocar a seleção de etapas (hoje `st.multiselect`) por **checkboxes**.
-
-### Requisitos
-- Em [executar_pipeline.py](frontend/pages/2_executar_pipeline.py#L14-L20), substituir o
-  `st.multiselect` por um `st.checkbox` por etapa (rótulos de
-  [STAGE_LABELS](frontend/env_config.py#L36-L42)), preservando a montagem de `enabled_stages` no
-  payload (`_build_payload`).
-- Manter intactos o feedback de progresso (`stqdm`), o status por etapa e o botão de retentativa.
-
-**Critério de aceite:** cada etapa possui um checkbox; marcar/desmarcar reflete em
-`enabled_stages`; o backend recebe o mesmo contrato de antes; progresso e retentativa seguem
-funcionando.
-
----
-
-## 9. UUID e tabelas de execução (requisito 8)
-
-Toda execução de pipeline iniciada deve ter um `uuid` correspondente persistido.
-
-### Schema
-**Nova tabela `PIPELINE_PROC_ID`:**
-| Coluna | Tipo | Observação |
-|---|---|---|
-| `PROC_ID` | TEXT (PK) | string do `uuid` da execução |
-| `PROC_TS_START` | TIMESTAMP | início da execução |
-| `PROC_TS_END` | TIMESTAMP NULL | fim da execução (NULL enquanto roda) |
-
-**Alteração em `PIPELINE_PROC_NEWS`** (hoje `URL, TS_PROC, NM_SITE, PROC_SUCCESS` em
-[sqlite_storage.py:181-190](backend/src/adapters/storage/sqlite_storage.py#L181-L190)):
-- **Adicionar** coluna `PROC_ID` (uuid da execução; FK lógica para `PIPELINE_PROC_ID`).
-- **Renomear** `TS_PROC` → `PROC_TS`.
-
-### Implementação
-- `self.pipeline_id` já existe em [pipeline.py:65](backend/src/pipeline/pipeline.py#L65). No início
-  de `execute()` gravar `PIPELINE_PROC_ID` com `PROC_TS_START` e `PROC_TS_END = NULL`; ao final
-  (sucesso ou falha) atualizar `PROC_TS_END`.
-- Propagar `pipeline_id` (já presente em `_create_initial_input`,
-  [pipeline.py:235-251](backend/src/pipeline/pipeline.py#L235-L251)) até a
-  `DoclingTransformStage`, que ao gravar `ProcNewsRecord` passa a incluir `PROC_ID`.
-- Atualizar o modelo [proc_news.py](backend/src/domain/models/proc_news.py): renomear `ts_proc` →
-  `proc_ts`, adicionar `proc_id`; ajustar `to_dict`/`from_row`.
-- Novo modelo de domínio `PipelineProcRecord` (ex.:
-  `backend/src/domain/models/pipeline_proc.py`).
-- Estender `StoragePort` e `SQLiteStorage` com `save_pipeline_proc(record)` /
-  `finish_pipeline_proc(proc_id, end_ts)`.
-- **Migração** da coluna renomeada: como SQLite tem suporte limitado a `ALTER`/rename,
-  recriar a tabela `PIPELINE_PROC_NEWS` com o novo schema (e copiar dados existentes, se houver)
-  na rotina `_initialize_database`; alternativamente `ALTER TABLE ... RENAME COLUMN` quando a
-  versão do SQLite suportar. A estratégia escolhida deve ser idempotente.
-
-**Critério de aceite:** cada execução cria uma linha em `PIPELINE_PROC_ID` com início; ao terminar,
-`PROC_TS_END` é preenchido; cada linha de `PIPELINE_PROC_NEWS` referencia o `PROC_ID` da execução e
-usa `PROC_TS`; bancos antigos migram sem perda de dados.
+**Critério de aceite:** o texto do Docling reflete a conversão do conteúdo; existe checkbox de Google
+CSE com input de ID condicional; a aba CSV documenta colunas/tipos e o descarte de linhas fora do
+padrão.
 
 ---
 
-## 10. Nova etapa de tratamento de notícias (requisito 9)
+## 7. R6 — Tela de executar pipeline
 
-Após a transformação em Markdown, uma **nova etapa** trata as notícias — manualmente ou via LLM.
+Ajustes em [executar_pipeline.py](frontend/pages/executar_pipeline.py).
 
-### Pipeline
-- Nova stage `NewsTreatmentStage` inserida **entre** `DoclingTransformStage` e
-  `DataCollectionStage` em [pipeline.py:179-188](backend/src/pipeline/pipeline.py#L179-L188), com
-  um novo valor em `StageName` (ex.: `NEWS_TREATMENT = "news_treatment"`) e suas subetapas
-  (`SubStageTag`).
+### 7.1 Duplicidade do checkbox de LLM
+- Hoje o checkbox de LLM aparece **na execução**
+  ([executar_pipeline.py:39-42](frontend/pages/executar_pipeline.py#L39-L42)) **e** no tratamento
+  ([tratamento_noticias.py:139](frontend/pages/tratamento_noticias.py#L139)). Como o tratamento é
+  **posterior** à execução, isso pode confundir o usuário.
+- **Proposta:** estabelecer **fonte única** da escolha de LLM. A seleção de "usar LLM / qual modelo"
+  pertence à **tela de tratamento**; na tela de executar pipeline, em vez de um checkbox que decide o
+  tratamento, exibir apenas uma **informação** de que o tratamento de notícias (manual ou via LLM) é
+  feito na tela própria, evitando erro de procedimento. (Se a execução em lote via LLM precisar ser
+  mantida, deixá-la explicitamente rotulada como "tratamento automático na execução" e desabilitada
+  por padrão.)
 
-### Modos de tratamento
-- **Manual:** editor de texto via lib **`streamlit-code-editor`** (adicionar a
-  [frontend/requirements.in](frontend/requirements.in)).
-- **LLM:** habilitado por **checkbox global** no Streamlit ("Usar LLM para tratamento").
-- O usuário escolhe **quais registros** tratar — manualmente ou por LLM — em granularidade por
-  notícia.
+### 7.2 Textos didáticos por etapa
+- Enriquecer os textos descritivos das etapas (hoje muito sucintos, linhas 12-27), com bom
+  equilíbrio entre documentação técnica e didática, explicando o **propósito** de cada etapa
+  (Docling, Tratamento, Coleta, Engenharia de Features, Confundidores, Preparação) sem citar números
+  de seção (ver R8).
 
-### Prompt de tratamento
-- Instrui o modelo a **excluir conteúdo irrelevante** (headers, footers, modais e outras partes
-  da página original) e a **inserir metadata** (frontmatter) no topo do Markdown:
+### 7.3 Etapas puláveis e dependências
+- Informar que **etapas podem ser puladas** desde que não interrompam a lógica da pipeline.
+- **Desabilitar** o checkbox de uma etapa enquanto a etapa-pré-requisito estiver desmarcada. Mapa de
+  dependências (de [pipeline.py:199-219](backend/src/pipeline/pipeline.py#L199-L219)):
+  | Etapa | Pulável | Pré-requisito obrigatório |
+  |---|---|---|
+  | `docling_transform` | Sim | — |
+  | `news_treatment` | Sim | `docling_transform` (consome `news_markdowns`) |
+  | `data_collection` | **Não** | — (base para features) |
+  | `feature_engineering` | **Não** | `data_collection` |
+  | `confounding_handling` | Sim | — |
+  | `modeling_preparation` | **Não** | `feature_engineering` |
+- Implementar via `disabled=` no `st.checkbox`, condicionado ao estado do checkbox pré-requisito; as
+  etapas obrigatórias permanecem marcadas. Preservar a montagem de `enabled_stages` no payload.
+
+### 7.4 Feedback de UUID
+- Ao iniciar a execução, **exibir o `uuid` da execução** como feedback visual. O valor já é retornado
+  em `pipeline_id` ([pipeline_schema.py:71-77](backend/app/api/schemas/pipeline_schema.py#L71-L77));
+  basta apresentá-lo (ex.: `st.success(f"Execução iniciada — ID: {pipeline_id}")`).
+
+**Critério de aceite:** não há ambiguidade entre as telas quanto à LLM; os textos das etapas são
+didáticos; etapas dependentes têm checkbox desabilitado até o pré-requisito ser marcado; o `uuid` da
+execução é exibido ao iniciar.
+
+---
+
+## 8. R7 — Tela de tratamento de notícias
+
+Ajustes em [tratamento_noticias.py](frontend/pages/tratamento_noticias.py) e backend de LLM.
+
+### 8.1 Editor sempre presente com template
+- Hoje o texto diz "Você pode tratar manualmente (editor ao lado) ou usar uma LLM"
+  ([tratamento_noticias.py:23](frontend/pages/tratamento_noticias.py#L23)), mas **não há editor**
+  quando a pipeline ainda não rodou.
+- O editor deve estar **sempre presente**. Sem execução, exibir um **template** de como o arquivo
+  tratado deve se parecer (frontmatter + corpo):
   ```markdown
   ---
-  title: Título da matéria
-  subtitle: Este é o subtítulo da matéria
-  url: https://g1.com/...
-  date: DD-MM-AAAA
+  title: Banco do Brasil fora do ar? Aplicativo tem instabilidade e clientes reclamam nas redes
+  subtitle: Segundo o site DownDetector, que monitora interrupções em serviços online, aplicativo chegou a ter mais de 2,5 mil pela manhã. Banco normalizou os serviços por volta das 15h20.
+  url: https://g1.globo.com/economia/noticia/2026/06/10/banco-do-brasil-fora-do-ar.ghtml
+  date: 06-10-2026
   ---
 
-  Conteúdo principal
+  O aplicativo do Banco do Brasil passou por instabilidade nesta quarta-feira (10)...
   ```
-- O prompt é uma **constante** `_PROMPT_TRATAMENTO_NOTICIAS` num **novo arquivo de prompts**
-  (`backend/src/adapters/llm/prompts.py`), preparado para receber outros prompts em evoluções:
-  ```python
-  _PROMPT_TRATAMENTO_NOTICIAS = """Este é o prompt."""
-  ```
-- O metadata do frontmatter será usado para persistir o documento tratado.
+- **Layout:** arquivo original (template se a pipeline não rodou) à **esquerda** e editor à
+  **direita**, com **legendas** acima de cada campo (ex.: "Arquivo original em .md" e "Editor de
+  tratamento").
+- Usar a lib **`streamlit-code-editor`** — **já instalada** (`==0.1.21`,
+  [requirements.in](frontend/requirements.in)) e já usada em
+  [tratamento_noticias.py:126-130](frontend/pages/tratamento_noticias.py#L126-L130).
+- Adicionar botões para (1) **aplicar** as alterações e seguir para o próximo documento e para (2) **descartar** as alterações, retornando ao mesmo estado da notícia após a tranformação em markdown com o Docling
 
-### Validação manual pós-LLM (não-bloqueante)
-- Após passar pela LLM, o usuário pode validar manualmente cada registro; o processo é
-  **não-bloqueante**: registros já tratados podem ser validados em paralelo enquanto outros ainda
-  passam pela LLM.
-- A tela de validação mostra **lado a lado** o texto **não tratado** e o **tratado**, permitindo
-  ao usuário comparar e adaptar.
+### 8.2 Aviso de conformidade com o template
+- Adicionar no texto de informações que **registros fora de conformidade com o template não serão
+  considerados** nas etapas seguintes da pipeline.
 
-### Persistência
-- Tabela de **documentos tratados** com os campos do frontmatter (`title`, `subtitle`, `url`,
-  `date`) + conteúdo tratado, associada ao `PROC_ID` da execução. Métodos correspondentes em
-  `StoragePort`/`SQLiteStorage`.
+### 8.3 Status do modelo dentro do selectbox
+- Hoje o status aparece **abaixo** do selectbox
+  ([tratamento_noticias.py:66-67](frontend/pages/tratamento_noticias.py#L66-L67)). Mover o status
+  para **dentro** do label de cada opção, obtendo o status da lógica já implementada
+  ([catalog.py:disk_status](backend/src/adapters/llm/catalog.py)):
+  > Qwen3.6-27B (⬇️ download)
+  > Qwen3-4B (✅ pronto para uso)
+  > DeepSeek R1 Distill-Qwen-7B (🔁 fazendo download)
+- O `format_func` do `st.selectbox` passa a compor `nome (emoji status)`, reutilizando
+  `_STATUS_LEGEND` ([tratamento_noticias.py:39-43](frontend/pages/tratamento_noticias.py#L39-L43)).
 
-**Critério de aceite:** a etapa roda após o Docling; o usuário escolhe registros e modo
-(manual/LLM); o resultado contém o frontmatter especificado e remove ruído; a validação é
-não-bloqueante com visão original × tratado; documentos tratados ficam persistidos com metadata.
+### 8.4 Enum de "melhor uso" por faixa de VRAM (backend)
+- A mensagem de melhor uso da LLM **não deve mais** ser obtida da string `best_use` no `.env`.
+- Criar um **enum no código** cujo **parâmetro de decisão é a faixa de VRAM mínima** (esta sim obtida
+  da string da variável de ambiente `LLM_MODELS`). Faixas fixas, por exemplo:
+  | Faixa de VRAM mínima | Recomendação de uso |
+  |---|---|
+  | `<= 4 GB` | Modelos leves, ideais para laptops com pouca memória gráfica |
+  | `<= 8 GB` | Equilíbrio entre custo e qualidade para tratamento de texto |
+  | `> 8 GB` | Modelos maiores para revisão, ajuste de tom e sumarização avançada |
+- Implementar como `Enum` em módulo do backend de LLM (ex.: `backend/src/adapters/llm/`), com método
+  que recebe a VRAM (parseada da string do catálogo) e devolve a recomendação. A rota
+  ([pipeline_routes.py:164](backend/app/api/routes/pipeline_routes.py#L164)) passa a derivar
+  `best_use` do enum em vez de ler `model.get("best_use")`.
+
+**Critério de aceite:** o editor aparece sempre (com template quando não há execução), com original à
+esquerda, editor à direita e legendas; há aviso de conformidade com o template; o status do modelo
+aparece dentro do selectbox; a recomendação de uso vem de um enum por faixa de VRAM, com a VRAM
+mínima ainda lida do `.env`.
 
 ---
 
-## 11. LLM em arquitetura hexagonal (requisitos 10 e 11)
+## 9. R8 — Remoção de números de seção
 
-A chamada à LLM adere a **Ports & Adapters**, com opção de **modelos locais** ou **APIs**.
+Nenhuma referência a número de seção do [PLANO_DE_ACAO.md](PLANO_DE_ACAO.md) deve aparecer no
+frontend ou em docstrings/comentários de ambos os projetos. Exemplos a remover: `(Seção 2.5)`,
+`(2.4)`, `Seção 9`, `Seção 10`, etc.
 
-### Port
-- Novo **port** `LlmPort` em `backend/src/ports/llm.py`, ex.:
-  ```python
-  class LlmPort(ABC):
-      @abstractmethod
-      def treat_news(self, markdown: str, *, prompt: str) -> str: ...
-  ```
+### Arquivos com ocorrências (frontend)
+- [env_config.py](frontend/env_config.py) (linhas 1, 35, 40-42, 45),
+  [api_client.py](frontend/api_client.py) (várias rotas),
+  [executar_pipeline.py](frontend/pages/executar_pipeline.py),
+  [tratamento_noticias.py](frontend/pages/tratamento_noticias.py),
+  [visualizar_features.py](frontend/pages/visualizar_features.py),
+  [timeline_builder.py](frontend/components/timeline_builder.py),
+  [timeline_bbas3.py](frontend/pages/timeline_bbas3.py),
+  [analise_exploratoria.py](frontend/pages/analise_exploratoria.py).
 
-### Adapters
-- **`LocalLlmAdapter`** (`backend/src/adapters/llm/local_llm_adapter.py`) — **HuggingFace
-  Transformers**, reaproveitando `torch==2.2.2` e `transformers==4.46.3` já no
-  [backend/requirements.in](backend/requirements.in). Carrega o modelo do cache local
-  (`llm-models/`) e roda inferência respeitando CPU/GPU disponível.
-- **`ApiLlmAdapter`** (`backend/src/adapters/llm/api_llm_adapter.py`) — **Pydantic AI**
-  multiprovider; o provider/modelo da nuvem é definido por env var. Facilita mock nos testes
-  (req. 13).
-- Seleção **local vs API** por configuração (`LLM_BACKEND`) e/ou pela UI.
-- Registro no [DependencyContainer](backend/src/pipeline/dependency_container.py) (ex.:
-  `get_llm()` com escolha do adapter conforme config), injetado na `NewsTreatmentStage`.
+### Arquivos com ocorrências (backend)
+- [bcb_api_adapter.py](backend/src/adapters/data_sources/bcb_api_adapter.py),
+  [bcb_dtos.py](backend/src/adapters/data_sources/bcb_dtos.py),
+  [config.py](backend/app/core/config.py),
+  [pipeline_routes.py](backend/app/api/routes/pipeline_routes.py),
+  [pipeline_stage.py](backend/src/pipeline/pipeline_stage.py),
+  [pipeline_schema.py](backend/app/api/schemas/pipeline_schema.py),
+  [sqlite_storage.py](backend/src/adapters/storage/sqlite_storage.py),
+  [prompts.py](backend/src/adapters/llm/prompts.py),
+  [news_treatment_stage.py](backend/src/pipeline/stages/news_treatment_stage.py),
+  [treated_news.py](backend/src/domain/models/treated_news.py),
+  [local_llm_adapter.py](backend/src/adapters/llm/local_llm_adapter.py),
+  [api_llm_adapter.py](backend/src/adapters/llm/api_llm_adapter.py),
+  [catalog.py](backend/src/adapters/llm/catalog.py),
+  [confounding_handler_service.py](backend/src/domain/services/confounding_handler_service.py),
+  [feature_engineering_service.py](backend/src/domain/services/feature_engineering_service.py),
+  [modeling_preparation_service.py](backend/src/domain/services/modeling_preparation_service.py).
 
-**Critério de aceite:** a `NewsTreatmentStage` depende apenas do `LlmPort` (não de detalhes do
-provedor); alternar entre local e API é questão de configuração; nenhum import de provider vaza
-para o domínio.
+O conteúdo explicativo das docstrings deve ser **preservado** — remove-se apenas a referência
+numérica à seção do plano (substituindo, quando útil, por descrição textual do propósito).
 
----
-
-## 12. Modelos locais por VRAM (requisito 12)
-
-O usuário escolhe entre LLMs locais conforme requisitos de VRAM, com download sob demanda.
-
-### Catálogo por variável de ambiente
-- **Sem nomes hardcoded.** Catálogo em `LLM_MODELS` (JSON parseado no código), contendo ao menos
-  `name`, `path`, `vram` e `best_use` por modelo. Exemplo:
-  ```text
-  LLM_MODELS='[{"name":"DeepSeek R1 Distill-Qwen-7B","path":"llm-models/deepseek-r1-distill-qwen-7b","vram":"4 GB","best_use":"Altamente capaz de analisar regras e editar documentação com precisão."},{"name":"Qwen3-4B","path":"llm-models/qwen3-4b","vram":"8 GB","best_use":"Perfeita para laptops com menos memória gráfica."},{"name":"Qwen3.6-27B","path":"llm-models/qwen3-6-27b","vram":"12 GB - 16 GB","best_use":"Excelente para revisão de texto, ajuste de tom e sumarização."}]'
-  ```
-
-### UI (Streamlit)
-- **Selectbox** lista cada modelo como `nome (VRAM)` — ex.: `Qwen3-4B (8 GB de VRAM)`.
-- Abaixo, ao selecionar, exibir a **melhor aplicação** (`best_use`) do modelo.
-- **Legenda de status em disco** por modelo:
-  - `✅ pronto para uso` — presente em `llm-models/`.
-  - `⬇️ download` — ainda não baixado.
-  - `🔁 fazendo download` — download em andamento.
-
-### Download sob demanda
-- Baixar **apenas o modelo selecionado**, **somente após iniciar a execução** da pipeline, **nunca
-  antes** (não baixar no build — evita atraso e uso de disco desnecessário).
-- Modelo já presente em disco **não** é baixado novamente.
-- Cache numa pasta dedicada **`llm-models/`** (via `LLM_MODELS_DIR`), usando
-  `huggingface_hub.snapshot_download`.
-- `llm-models/` deve ser ignorado por [.gitignore](.gitignore) e [.dockerignore](.dockerignore).
-
-**Critério de aceite:** o selectbox mostra nome+VRAM e a aplicação do modelo escolhido; o status em
-disco reflete a realidade; o download ocorre só após o start e só do modelo selecionado; nenhum
-modelo é baixado no build; modelos presentes não são rebaixados; nomes vêm de `LLM_MODELS`.
+**Critério de aceite:** uma busca por `Seção`/`(2.` /`§` no frontend e nas docstrings do backend não
+retorna referências a números de seção do plano; as docstrings continuam descrevendo o propósito.
 
 ---
 
-## 13. Testes (requisito 13)
+## 10. R9 — Atualização de testes
 
-Atualizar os testes existentes conforme as mudanças; testes que esperam retorno de LLM são
-**mockados**.
+Atualizar os testes existentes conforme as mudanças. Testes que dependem de LLM permanecem
+**mockados** (sem rede/download).
 
 ### Impacto
-- [test_pipeline_orchestration.py](backend/tests/test_pipeline_orchestration.py),
-  [test_pipeline_stages.py](backend/tests/test_pipeline_stages.py),
-  [test_substage_and_toggle.py](backend/tests/test_substage_and_toggle.py): ajustar para a nova
-  `NewsTreatmentStage`, novo `StageName`, novas subetapas e schema atualizado.
+- **Chunking (R4):** novos casos para `DateRange.split` (período < 1 ano → 1 janela; >= 1 ano →
+  janelas consecutivas, inclusivas, sem sobreposição cobrindo todo o intervalo) e para o
+  `BcbApiAdapter` (itera subintervalos e concatena/deduplica). Verificar se
+  [test_pipeline_orchestration.py:40-72](backend/tests/test_pipeline_orchestration.py#L40-L72)
+  (validação de datas) precisa de ajuste.
+- **Enum de VRAM (R7.4):** [test_llm.py](backend/tests/test_llm.py) (linha ~33) deixa de assertar
+  `best_use` como string livre e passa a verificar a recomendação **derivada do enum** por faixa de
+  VRAM.
+- **CSV (R5.3):** se a lógica passar a **reportar** linhas descartadas, adicionar teste de descarte
+  (linhas fora do padrão são ignoradas e contadas); caso contrário, validar a documentação sem
+  alterar comportamento.
+- **UI (R2/R3/R6/R7):** mudanças de Streamlit são majoritariamente visuais; cobrir por testes apenas
+  helpers puros extraídos (ex.: regra de "forçar data e avisar", composição do label do selectbox).
 
-### Novos casos
-- `PIPELINE_PROC_ID`: criação com `PROC_TS_START`, atualização de `PROC_TS_END`.
-- `PIPELINE_PROC_NEWS`: presença de `PROC_ID` e coluna `PROC_TS` (renomeada); migração idempotente.
-- `NewsTreatmentStage`: modos manual/LLM, geração do frontmatter, seleção de registros.
-- `LlmPort`: o `ApiLlmAdapter` (Pydantic AI) usa modelo de teste/`TestModel`; o `LocalLlmAdapter`
-  é mockado para **não** baixar nem carregar pesos reais.
-- Catálogo `LLM_MODELS`: parsing do JSON e detecção de status em disco.
-
-**Critério de aceite:** suíte verde sem rede e sem download de modelos; nenhuma chamada real de LLM
-nos testes; cobertura das novas tabelas, da nova etapa e do port de LLM.
-
----
-
-## 14. Documentação (requisito 13)
-
-- Atualizar [README.md](README.md): execução **sem Docker** (uvicorn + streamlit), configuração de
-  LLM (local vs API, `LLM_MODELS`, pasta `llm-models/`), novas telas e fluxo de tratamento de
-  notícias.
-- Criar **`CHANGELOG.md`** com tópicos resumidos do que foi desenvolvido até então (pode ser
-  gerado/assistido pelo skill `changelog-generator`).
-
-**Critério de aceite:** README descreve o fluxo standalone e a configuração de LLM; `CHANGELOG.md`
-existe e resume as mudanças desta evolução.
+**Critério de aceite:** suíte verde offline, sem chamadas reais de LLM nem rede; novos casos cobrindo
+chunking, enum de VRAM e (se aplicável) descarte de CSV.
 
 ---
 
-## 15. Variáveis de ambiente
+## 11. R10 — Documentação (README e CHANGELOG)
 
-Consolidar em [.env.example](.env.example) as novas variáveis:
+- Atualizar [README.md](README.md): chunking de período nas requisições BCB (e nota sobre yfinance),
+  esquema de cores configurável, restrições de datas, checkbox de Google CSE, padrão de CSV,
+  melhorias da tela de execução (UUID, etapas dependentes), editor com template e enum de VRAM.
+- Atualizar [CHANGELOG.md](CHANGELOG.md) com uma nova entrada resumindo os tópicos desta iteração
+  (pode ser assistido pelo skill `changelog-generator`).
+
+**Critério de aceite:** README e CHANGELOG refletem as mudanças desta iteração em tópicos resumidos.
+
+---
+
+## 12. Variáveis de ambiente
+
+Esta iteração **não introduz novas variáveis obrigatórias**. Confirma o uso de:
 
 | Variável | Exemplo | Função |
 |---|---|---|
-| `LLM_BACKEND` | `local` \| `api` | Escolhe adapter local (HF) ou API (Pydantic AI) |
-| `LLM_MODELS` | JSON (ver §12) | Catálogo de modelos locais (sem hardcode) |
-| `LLM_MODELS_DIR` | `llm-models` | Pasta de cache dos modelos locais |
-| `LLM_API_PROVIDER` | `anthropic` | Provider da nuvem via Pydantic AI |
-| `LLM_API_MODEL` | `claude-...` | Modelo da nuvem |
-| `DATABASE_URL` | `sqlite:///./data/pipeline.db` | Conexão configurável sem Docker (§6) |
+| `DATE_START` / `DATE_END` | `2025-01-01` / `2025-12-31` | Default de período (R4) |
+| `LLM_MODELS` | JSON com `name`, `path`, `vram`, ... | Catálogo; `vram` alimenta o enum (R7.4) |
+| `LLM_BACKEND` | `local` \| `api` | Escolha do adapter de LLM |
 
-**Critério de aceite:** todas as variáveis novas documentadas no `.env.example` com comentário; o
-código lê via [config.py](backend/app/core/config.py)/[env_config.py](frontend/env_config.py) sem
-literais hardcoded.
+A chave `best_use` do JSON `LLM_MODELS` torna-se **opcional/ignorada** (a recomendação passa a vir do
+enum por faixa de VRAM). O ID do Google CSE é informado pela UI, não por env var.
+
+**Critério de aceite:** o código lê valores via [config.py](backend/app/core/config.py)/
+[env_config.py](frontend/env_config.py); a recomendação de uso da LLM não depende mais de `best_use`
+no `.env`.
 
 ---
 
-## 16. Critérios de aceite globais
+## 13. Critérios de aceite globais
 
-Checklist de validação da implementação (rastreabilidade com o prompt original):
+Checklist rastreável com o prompt original:
 
-- [ ] **R1** — Avaliação de refatoração registrada; mudanças incrementais; ports/adapters coerentes.
-- [ ] **R2** — Dark mode alternável no sidebar, persistente entre páginas.
-- [ ] **R3** — Páginas sem prefixo numérico no arquivo; número só no rótulo do sidebar.
-- [ ] **R4** — UI 100% PT-BR; bloco de contexto de negócio por página.
-- [ ] **R5** — Execução sem Docker funcionando; banco configurável por `.env`.
-- [ ] **R6** — "Verificar Status" reporta backend e banco; erros com motivo que somem na retentativa.
-- [ ] **R7** — Seleção de etapas por checkbox, contrato `enabled_stages` preservado.
-- [ ] **R8** — `PIPELINE_PROC_ID` criada; `PIPELINE_PROC_NEWS` com `PROC_ID` e `PROC_TS`; execução rastreada.
-- [ ] **R9** — Etapa de tratamento (manual/LLM) com frontmatter, seleção de registros e validação não-bloqueante original × tratado.
-- [ ] **R10/R11** — LLM via `LlmPort` com adapters local (HF) e API (Pydantic AI), selecionáveis.
-- [ ] **R12** — Modelos por VRAM, selectbox nome+VRAM+aplicação, status em disco, download sob demanda em `llm-models/`, sem hardcode.
-- [ ] **R13** — Testes atualizados e LLM mockada; suíte verde offline.
-- [ ] **Docs** — README atualizado e `CHANGELOG.md` criado.
+- [ ] **R1** — Avaliação de refatoração e diretrizes de ML registradas; mudanças incrementais.
+- [ ] **R2** — Esquema de cores configurável (5 papéis); light mode corrigido; dark mode intacto.
+- [ ] **R3** — Restrições de data: inicial do sidebar >= inicial da aba Ações (forçar + avisar); data
+      final limitada a hoje no sidebar e na aba Ações (forçar + warning).
+- [ ] **R4** — Chunking de período >= 1 ano no BCB; verificação do yfinance documentada/aplicada;
+      default 2025-01-01..2025-12-31 mantido.
+- [ ] **R5** — Texto do Docling corrigido (conteúdo, não link); checkbox de Google CSE com input de
+      ID; aba CSV documenta colunas/tipos e descarte de linhas fora do padrão.
+- [ ] **R6** — Sem ambiguidade de LLM entre telas; textos de etapa didáticos; checkbox de etapa
+      dependente desabilitado até o pré-requisito; `uuid` exibido ao iniciar.
+- [ ] **R7** — Editor sempre presente com template; original × editor com legendas; aviso de
+      conformidade; status dentro do selectbox; enum por faixa de VRAM (VRAM mínima do `.env`).
+- [ ] **R8** — Sem números de seção do plano no frontend e nas docstrings de ambos os projetos.
+- [ ] **R9** — Testes atualizados (chunking, enum de VRAM, CSV); suíte verde offline e LLM mockada.
+- [ ] **R10** — README e CHANGELOG atualizados com tópicos resumidos.

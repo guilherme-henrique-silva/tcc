@@ -1,4 +1,4 @@
-"""DTOs (Pydantic) das respostas da API do Banco Central (Seção 6.3 do spec)."""
+"""DTOs (Pydantic) das respostas da API do Banco Central do Brasil."""
 
 from typing import List
 from pydantic import BaseModel, Field

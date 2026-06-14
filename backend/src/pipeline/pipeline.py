@@ -26,7 +26,7 @@ from app.core.logger import get_logger
 
 
 class StageName(str, Enum):
-    """Identificadores das etapas habilitáveis da pipeline (Seção 2 do spec)."""
+    """Identificadores das etapas habilitáveis da pipeline."""
 
     DOCLING_TRANSFORM = "docling_transform"
     NEWS_TREATMENT = "news_treatment"
@@ -81,7 +81,7 @@ class DataPipeline:
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineResult:
         """
-        Execute the pipeline, honoring the per-stage feature toggle (Seção 2 do spec).
+        Execute the pipeline, honoring the per-stage feature toggle.
 
         Args:
             enabled_stages: set of StageName to run; None = run all stages.
@@ -184,7 +184,7 @@ class DataPipeline:
         return True
 
     def _record_run_start(self, start_time: datetime) -> None:
-        """Persist a PIPELINE_PROC_ID row for this execution (Seção 9 do spec)."""
+        """Persist a PIPELINE_PROC_ID row for this execution."""
         record = PipelineProcRecord(
             proc_id=self.pipeline_id,
             proc_ts_start=start_time,
@@ -193,7 +193,7 @@ class DataPipeline:
         self.container.get_storage().save_pipeline_proc(record)
 
     def _record_run_end(self, end_time: datetime) -> None:
-        """Stamp PROC_TS_END once the execution ends, success or failure (Seção 9)."""
+        """Stamp PROC_TS_END once the execution ends, success or failure."""
         self.container.get_storage().finish_pipeline_proc(self.pipeline_id, end_time)
 
     def _initialize_stages(self) -> List:

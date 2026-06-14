@@ -1,4 +1,4 @@
-"""LocalLlmAdapter - tratamento via HuggingFace Transformers, CPU/GPU-aware (Seção 11)."""
+"""LocalLlmAdapter — tratamento via HuggingFace Transformers, CPU/GPU-aware."""
 
 from typing import Callable, Optional
 
@@ -11,7 +11,7 @@ class LocalLlmAdapter(LlmPort):
 
     Imports pesados (torch/transformers/huggingface_hub) são preguiçosos, e os
     colaboradores de download/geração são injetáveis para permitir testes sem
-    baixar nem carregar pesos reais (Seção 13).
+    baixar nem carregar pesos reais.
     """
 
     def __init__(
@@ -40,7 +40,7 @@ class LocalLlmAdapter(LlmPort):
         return self._generate(generator, composed)
 
     def _ensure_downloaded(self) -> None:
-        """Download the selected model only when missing — never re-download (Seção 12)."""
+        """Download the selected model only when missing — never re-download."""
         if disk_status(self._models_dir, self._model_path, in_progress=()) == STATUS_READY:
             return
 
@@ -81,7 +81,7 @@ class LocalLlmAdapter(LlmPort):
         return resolve_local_dir(self._models_dir, self._model_path).name
 
     def _select_device(self) -> int:
-        """Return 0 for CUDA when available, else -1 for CPU (Seção 11)."""
+        """Return 0 for CUDA when available, else -1 for CPU."""
         import torch
 
         return 0 if torch.cuda.is_available() else -1

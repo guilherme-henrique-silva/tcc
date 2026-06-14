@@ -18,7 +18,7 @@ from backend.app.core.config import Config
 
 
 class TestCatalog:
-    """Parsing de LLM_MODELS e detecção de status em disco (Seção 12)."""
+    """Parsing de LLM_MODELS e detecção de status em disco."""
 
     def test_disk_status(self, tmp_path):
         (tmp_path / "llm-models" / "qwen").mkdir(parents=True)
@@ -54,7 +54,7 @@ class TestCatalog:
 
 
 class TestLocalAdapter:
-    """LocalLlmAdapter mockado: não baixa nem carrega pesos reais (Seção 13)."""
+    """LocalLlmAdapter mockado: não baixa nem carrega pesos reais."""
 
     def test_treats_with_injected_collaborators(self, tmp_path):
         calls = {"download": 0}
@@ -111,6 +111,48 @@ class TestApiAdapter:
         output = adapter.treat_news("bruto", prompt="P")
         assert isinstance(output, str)
         assert output
+
+
+class TestVramTier:
+    """VramTier enum: parsing de string de VRAM e propriedade recommendation."""
+
+    def test_light_tier_at_boundary(self):
+        from backend.src.adapters.llm.vram_tier import VramTier
+
+        assert VramTier.from_vram_string("4 GB") is VramTier.LIGHT
+
+    def test_balanced_tier_at_boundary(self):
+        from backend.src.adapters.llm.vram_tier import VramTier
+
+        assert VramTier.from_vram_string("8 GB") is VramTier.BALANCED
+
+    def test_advanced_tier_above_boundary(self):
+        from backend.src.adapters.llm.vram_tier import VramTier
+
+        assert VramTier.from_vram_string("16 GB") is VramTier.ADVANCED
+
+    def test_empty_string_defaults_to_balanced(self):
+        from backend.src.adapters.llm.vram_tier import VramTier
+
+        assert VramTier.from_vram_string("") is VramTier.BALANCED
+
+    def test_none_like_string_defaults_to_balanced(self):
+        from backend.src.adapters.llm.vram_tier import VramTier
+
+        assert VramTier.from_vram_string("N/A") is VramTier.BALANCED
+
+    def test_recommendation_is_non_empty_string(self):
+        from backend.src.adapters.llm.vram_tier import VramTier
+
+        for tier in VramTier:
+            assert isinstance(tier.recommendation, str)
+            assert len(tier.recommendation) > 0
+
+    def test_recommendation_texts_are_distinct(self):
+        from backend.src.adapters.llm.vram_tier import VramTier
+
+        texts = [tier.recommendation for tier in VramTier]
+        assert len(texts) == len(set(texts))
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ from typing import Dict, Optional
 
 @dataclass(frozen=True)
 class PipelineProcRecord:
-    """Registro de uma execução da pipeline identificada por UUID (Seção 9 do spec)."""
+    """Registro de uma execução da pipeline identificada por UUID."""
 
     proc_id: str                       # uuid da execução (PK)
     proc_ts_start: datetime            # início da execução

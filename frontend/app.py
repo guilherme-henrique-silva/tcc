@@ -1,4 +1,6 @@
-"""Streamlit entrypoint - navegação, tema e sidebar compartilhada (Requisitos 2, 3, 6)."""
+"""Streamlit entrypoint — navegação, tema e sidebar compartilhada."""
+
+from datetime import date
 
 import streamlit as st
 
@@ -13,29 +15,58 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Tema claro/escuro alternável e persistente entre páginas (Requisito 2).
 apply_theme()
 
 
 def _render_sidebar() -> None:
-    """Sidebar compartilhada: período de análise e verificação de status (Requisitos 5/6)."""
+    """Sidebar compartilhada: período de análise e verificação de status."""
     with st.sidebar:
         st.header("⚙️ Configuração")
 
         st.subheader("Período de Análise")
-        default_start, default_end = get_date_range()
-        st.date_input(
-            "Selecione o intervalo de datas",
-            value=(default_start, default_end),
-            key="global_date_range",
-        )
+        _render_date_range()
 
         st.subheader("Status dos serviços")
         _render_status_check()
 
 
+def _render_date_range() -> None:
+    """Seleção de período com restrições: data inicial >= início da aba Ações."""
+    default_start, default_end = get_date_range()
+    today = date.today()
+
+    # Data inicial mínima definida pela aba Ações (R3)
+    acoes_start: date = st.session_state.get("acoes_start_date", default_start)
+
+    # Datas atuais do sidebar (ou defaults)
+    current_range = st.session_state.get("global_date_range", (default_start, min(default_end, today)))
+    current_start = current_range[0] if isinstance(current_range, tuple) else default_start
+    current_end = current_range[1] if isinstance(current_range, tuple) else min(default_end, today)
+
+    # Forçar início para mínimo se violado
+    if current_start < acoes_start:
+        current_start = acoes_start
+        st.warning(
+            f"Data inicial ajustada para {acoes_start} "
+            "(mínimo definido pela aba Ações)."
+        )
+
+    # Forçar fim para hoje se superior
+    if current_end > today:
+        current_end = today
+        st.warning("Data final ajustada para hoje (não é possível selecionar datas futuras).")
+
+    st.date_input(
+        "Selecione o intervalo de datas",
+        value=(current_start, current_end),
+        min_value=acoes_start,
+        max_value=today,
+        key="global_date_range",
+    )
+
+
 def _render_status_check() -> None:
-    """Botão único que reporta backend e banco; erros somem na nova tentativa (Requisito 6)."""
+    """Botão único que reporta backend e banco; erros somem na nova tentativa."""
     backend_slot = st.empty()
     db_slot = st.empty()
 
@@ -48,7 +79,6 @@ def _render_status_check() -> None:
 
 
 def _check_backend(client: APIClient, slot) -> None:
-    """Report backend connectivity in its placeholder (Requisito 6)."""
     try:
         result = client.health_check()
         slot.success(f"Backend online — {result.get('status', 'OK')}")
@@ -57,7 +87,6 @@ def _check_backend(client: APIClient, slot) -> None:
 
 
 def _check_database(client: APIClient, slot) -> None:
-    """Report database connectivity, citing the reason on failure (Requisito 6)."""
     try:
         result = client.health_check_db()
         if result.get("status") == "ok":
@@ -70,7 +99,6 @@ def _check_database(client: APIClient, slot) -> None:
 
 _render_sidebar()
 
-# Navegação com rótulos numerados; arquivos sem prefixo numérico (Requisito 3).
 pages = [
     st.Page("pages/inicio.py", title="Início", icon="🏠", default=True),
     st.Page("pages/upload_dados.py", title="1 · Upload de Dados", icon="📤"),

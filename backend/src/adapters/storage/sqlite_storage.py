@@ -85,7 +85,7 @@ class SQLiteStorage(StoragePort):
             pass
     
     def save_proc_news(self, record: ProcNewsRecord) -> None:
-        """Persist a Docling processing record (Seção 9 do spec)."""
+        """Persist a Docling processing record."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -116,7 +116,7 @@ class SQLiteStorage(StoragePort):
             pass
 
     def get_proc_news(self, url: str) -> Optional[ProcNewsRecord]:
-        """Retrieve a processing record by URL (Seção 9 do spec)."""
+        """Retrieve a processing record by URL."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -146,7 +146,7 @@ class SQLiteStorage(StoragePort):
             return None
 
     def save_pipeline_proc(self, record: PipelineProcRecord) -> None:
-        """Persist a PIPELINE_PROC_ID row at the start of an execution (Seção 9)."""
+        """Persist a PIPELINE_PROC_ID row at the start of an execution."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -173,7 +173,7 @@ class SQLiteStorage(StoragePort):
             pass
 
     def finish_pipeline_proc(self, proc_id: str, end_ts: datetime) -> None:
-        """Stamp PROC_TS_END when execution ends, success or failure (Seção 9)."""
+        """Stamp PROC_TS_END when execution ends, success or failure."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -190,7 +190,7 @@ class SQLiteStorage(StoragePort):
             pass
 
     def save_treated_news(self, record: TreatedNewsRecord) -> None:
-        """Persist a treated news document with its frontmatter metadata (Seção 10)."""
+        """Persist a treated news document with its frontmatter metadata."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -224,7 +224,7 @@ class SQLiteStorage(StoragePort):
             pass
 
     def get_treated_news(self, url: str) -> Optional[TreatedNewsRecord]:
-        """Retrieve a treated news document by URL, or None (Seção 10)."""
+        """Retrieve a treated news document by URL, or None."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -246,7 +246,7 @@ class SQLiteStorage(StoragePort):
             return None
 
     def list_treated_news(self, proc_id: str) -> List[TreatedNewsRecord]:
-        """List treated documents for a given execution (Seção 10)."""
+        """List treated documents for a given execution."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -314,7 +314,7 @@ class SQLiteStorage(StoragePort):
         """)
 
     def _create_pipeline_proc_table(self, cursor) -> None:
-        """Create PIPELINE_PROC_ID table — one row per execution (Seção 9 do spec)."""
+        """Create PIPELINE_PROC_ID table — one row per execution."""
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS PIPELINE_PROC_ID (
                 PROC_ID       TEXT      PRIMARY KEY,
@@ -324,7 +324,7 @@ class SQLiteStorage(StoragePort):
         """)
 
     def _create_proc_news_table(self, cursor) -> None:
-        """Create PIPELINE_PROC_NEWS with PROC_ID/PROC_TS, migrating legacy rows (Seção 9)."""
+        """Create PIPELINE_PROC_NEWS with PROC_ID/PROC_TS, migrating legacy rows."""
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS PIPELINE_PROC_NEWS (
                 URL          TEXT      PRIMARY KEY,
@@ -362,7 +362,7 @@ class SQLiteStorage(StoragePort):
         cursor.execute("DROP TABLE PIPELINE_PROC_NEWS_OLD")
 
     def _create_treated_news_table(self, cursor) -> None:
-        """Create PIPELINE_TREATED_NEWS table for treated documents (Seção 10 do spec)."""
+        """Create PIPELINE_TREATED_NEWS table for treated documents."""
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS PIPELINE_TREATED_NEWS (
                 URL       TEXT PRIMARY KEY,
@@ -375,7 +375,7 @@ class SQLiteStorage(StoragePort):
         """)
 
     def check_connection(self) -> Optional[str]:
-        """Test DB connectivity for health checks: None on success, reason on failure (Seção 7)."""
+        """Test DB connectivity for health checks: None on success, reason on failure."""
         try:
             conn = self._get_connection()
             conn.execute("SELECT 1")

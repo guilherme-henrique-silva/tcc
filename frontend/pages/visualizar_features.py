@@ -11,14 +11,14 @@ st.title("📊 Análise de Features")
 context_block(
     "O que são estas features?",
     """
-    As features traduzem os dados brutos em sinais comparáveis (Seção 2.4 do plano):
+    As features traduzem os dados brutos em sinais comparáveis:
 
     - **Features de ações** — variação percentual diária, volatilidade (20 dias), volume
       normalizado e detecção de anomalias (>2σ).
     - **Features de notícias** — sentimento (+1/0/-1), frequência diária, TF-IDF reduzido
       e reconhecimento de entidades (banco, governo, commodity).
     - **Features + confundidores** — cruzam o sinal das notícias com Selic, dólar e
-      commodities, para separar efeito de notícia de contexto macroeconômico (Seção 2.5).
+      commodities, para separar efeito de notícia de contexto macroeconômico.
     """,
 )
 

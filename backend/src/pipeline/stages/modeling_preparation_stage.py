@@ -22,7 +22,7 @@ class ModelingPreparationStage(PipelineStage):
         self.classification_mode = classification_mode
 
     def substages(self) -> List[str]:
-        """Subetapas em ordem (Seção 3 do spec)."""
+        """Subetapas em ordem."""
         return ["dataset_nao_supervisionado", "dataset_supervisionado", "walk_forward"]
 
     def execute(

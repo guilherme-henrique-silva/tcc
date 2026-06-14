@@ -27,17 +27,21 @@ Para pesquisas envolvendo diretamenta a empresa ou pesquisas gerais:
 
 #### 2.3. Metodologia
 
-**Escopo do Projeto**: Período de 1 ano (jan-dez 2025); Ativos: BBSA3 (Banco do Brasil) + Concorrentes (ITUB4, BBDC4, SANB11); Fontes de notícias: G1, UOL, CNN Brasil, Folha de S. Paulo, Estadão, Metrópoles.
+**Escopo do Projeto**: Verificar se notícias envolvendo o Banco do Brasil (BB) influenciaram no valor das ações da empresa (BBAS3) em um determinado período
+**Período proposto**: 1 ano (jan-dez 2025)
+**Buscador escolhido**: Google. o motivo é que se trata do maior market share no mercado de buscadores de internet no Brasil (maior que 90%)
+**Dados necessários**: A priori, considera-se a coleta e tratamento dos seguintes dados:
 
-**Buscador escolhido**: Google
+- notícias mencionando a empresa "Banco do Brasil" no período proposto. Fontes de notícias: G1, UOL, CNN Brasil, Folha de S. Paulo, Estadão, Metrópoles
+- marcar as notícias que tiveram menção aos principais concorrentes da empresa dentre as notícias obtidas
+- obter os valores dos ativos financeiros no período proposto: BBAS3 (Banco do Brasil) + Concorrentes (ITUB4, BBDC4, SANB11);
+- obter os valores do dólar e taxa SELIC no período proposto: uma das maiores receitas do BB é o agronegócio, que é diretamente dependente do preço do dólar para exportação de commodities; a taxa SELIC influencia diretamente no valor dos empréstimos concedidos ao agronegócio
 
-**Motivo**: Maior market share no mercado de buscadores de internet no Brasil (maior que 90%)
+**a. Coleta Manual de Notícias**
 
-**a. Coleta Automatizada de Notícias**
+A partir de um [Mecanismo de Pesquisa do Google](https://developers.google.com/custom-search/docs/tutorial/creatingcse?hl=pt-br) já previamente criado, buscar as notícias com o termo "Banco do Brasil" em cada dia do período proposto
 
-Criação de [Mecanismo de Pesquisa do Google](https://developers.google.com/custom-search/docs/tutorial/creatingcse?hl=pt-br)
-
-Serve basicamenta para gerar um buscador do Google para funcionar em outras ferramentas da empresa voltadas ao desenvolvimento de sistemas.
+Serve basicamenta para gerar um buscador do Google para funcionar em outras ferramentas externas.
 
 Ao criar um Mecanismo de Pesquisa, um código HTML contendo um script como este é gerado:
 

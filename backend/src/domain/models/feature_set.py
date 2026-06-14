@@ -76,7 +76,7 @@ class FeatureSet:
 @dataclass
 class StockFeatureSet(FeatureSet):
     """
-    Stock-specific feature set (Tópico 2.4).
+    Stock-specific feature set.
     
     Includes: daily returns, volatility, volume, anomalies, correlations.
     """
@@ -95,7 +95,7 @@ class StockFeatureSet(FeatureSet):
 @dataclass
 class NewsFeatureSet(FeatureSet):
     """
-    News-specific feature set (Tópico 2.4).
+    News-specific feature set.
     
     Includes: sentiment, frequency, TF-IDF, entities, mention counts.
     """

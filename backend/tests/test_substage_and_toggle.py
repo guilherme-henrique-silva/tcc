@@ -31,7 +31,7 @@ class _ThreeSubstageStage(PipelineStage):
 
 
 def test_substage_tag_order_ratio_and_label():
-    """order_ratio = order/total and label is human readable (Seção 3)."""
+    """order_ratio = order/total and label is human readable."""
     tag = SubStageTag("data_collection", "coletar_precos", 1, 2)
 
     assert tag.order_ratio == 0.5
@@ -39,7 +39,7 @@ def test_substage_tag_order_ratio_and_label():
 
 
 def test_report_substage_emits_tags_in_order():
-    """Each substage emits a SubStageTag with coherent order/total (Seção 3)."""
+    """Each substage emits a SubStageTag with coherent order/total."""
     stage = _ThreeSubstageStage()
     tags = []
 
@@ -52,7 +52,7 @@ def test_report_substage_emits_tags_in_order():
 
 
 def test_create_skipped_result_status():
-    """Disabled stages produce a SKIPPED result (Seção 2)."""
+    """Disabled stages produce a SKIPPED result."""
     stage = _ThreeSubstageStage()
 
     result = stage.create_skipped_result()

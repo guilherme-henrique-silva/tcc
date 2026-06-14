@@ -7,7 +7,7 @@ from typing import Dict, Optional
 
 @dataclass(frozen=True)
 class ProcNewsRecord:
-    """Registro do processamento de uma notícia via Docling (Seção 9 do spec)."""
+    """Registro do processamento de uma notícia via Docling."""
 
     url: str                          # link da notícia (PK)
     proc_ts: datetime                 # momento do processamento

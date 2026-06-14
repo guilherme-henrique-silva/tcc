@@ -1,4 +1,4 @@
-"""LlmPort - contrato hexagonal para tratamento de notícias via LLM (Seção 11 do spec)."""
+"""LlmPort — contrato hexagonal para tratamento de notícias via LLM."""
 
 from abc import ABC, abstractmethod
 
