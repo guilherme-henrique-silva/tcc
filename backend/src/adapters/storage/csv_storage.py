@@ -10,7 +10,7 @@ from src.domain.models import ProcNewsRecord, PipelineProcRecord, TreatedNewsRec
 
 
 class CsvStorage(StoragePort):
-    """Adapter for exporting features to CSV files (Rule 7: small entity)."""
+    """Adapter for exporting features to CSV files."""
     
     def __init__(self, base_path: str = "./data"):
         """Initialize with base directory for CSV files."""
@@ -100,6 +100,6 @@ class CsvStorage(StoragePort):
         return []
 
     def _get_features_path(self, dataset_id: str) -> Path:
-        """Get CSV path for features (Rule 1)."""
+        """Get CSV path for features."""
         safe_id = dataset_id.replace("/", "_")
         return self.base_path / f"features_{safe_id}.csv"

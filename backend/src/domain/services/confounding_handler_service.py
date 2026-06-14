@@ -116,7 +116,7 @@ class ConfoundingHandlerService:
         return self._filter_by_range(df, date_range)
 
     def _filter_by_range(self, df: pd.DataFrame, date_range: DateRange) -> pd.DataFrame:
-        """Keep only rows inside the requested date range (Rule 1)."""
+        """Keep only rows inside the requested date range."""
         if df.empty:
             return df
 
@@ -124,7 +124,7 @@ class ConfoundingHandlerService:
         return df[mask].reset_index(drop=True)
     
     def _load_commodity_data(self, date_range: DateRange) -> pd.DataFrame:
-        """Load commodity prices (soja, milho, boi) (Rule 1)."""
+        """Load commodity prices (soja, milho, boi)."""
         # TODO: Integrate with commodity data provider
         return pd.DataFrame({
             "date": self._generate_business_days(date_range),
@@ -139,7 +139,7 @@ class ConfoundingHandlerService:
         usd_brl_df: pd.DataFrame,
         commodity_df: pd.DataFrame,
     ) -> pd.DataFrame:
-        """Merge all control variables on date (Rule 1)."""
+        """Merge all control variables on date."""
         merged = selic_df.merge(usd_brl_df, on="date", how="outer")
         merged = merged.merge(commodity_df, on="date", how="outer")
         merged = merged.sort_values("date").reset_index(drop=True)
@@ -151,7 +151,7 @@ class ConfoundingHandlerService:
         sentiment: np.ndarray,
         prices: np.ndarray,
     ) -> bool:
-        """Validate Granger test inputs (Rule 2: no else)."""
+        """Validate Granger test inputs."""
         if not isinstance(sentiment, np.ndarray):
             return False
         
@@ -167,7 +167,7 @@ class ConfoundingHandlerService:
         return True
     
     def _create_invalid_granger_result(self) -> GrangerTestResult:
-        """Create invalid result for bad inputs (Rule 1)."""
+        """Create invalid result for bad inputs."""
         return GrangerTestResult(
             p_value=1.0,
             test_statistic=0.0,
@@ -181,7 +181,7 @@ class ConfoundingHandlerService:
         sentiment: np.ndarray,
         prices: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Align time series lengths (Rule 1)."""
+        """Align time series lengths."""
         min_length = min(len(sentiment), len(prices))
         return sentiment[:min_length], prices[:min_length]
     
@@ -223,7 +223,7 @@ class ConfoundingHandlerService:
         prices: np.ndarray,
         lag: int,
     ) -> float:
-        """Calculate F-statistic for Granger test (Rule 1)."""
+        """Calculate F-statistic for Granger test."""
         # Compute correlation as proxy for causality
         correlation = float(np.corrcoef(sentiment, prices)[0, 1])
         
@@ -234,21 +234,21 @@ class ConfoundingHandlerService:
         return float(t_stat)
     
     def _f_statistic_to_p_value(self, f_stat: float, df: int) -> float:
-        """Convert F-statistic to p-value (Rule 1)."""
+        """Convert F-statistic to p-value."""
         # Simplified: use normal approximation
         # In production, use scipy.stats.f.sf()
         p_value = 1.0 / (1.0 + abs(f_stat))
         return min(1.0, max(0.0, p_value))
     
     def _create_granger_interpretation(self, is_significant: bool, p_value: float) -> str:
-        """Create human-readable interpretation (Rule 1)."""
+        """Create human-readable interpretation."""
         if is_significant:
             return f"Sentiment Granger-causes prices (p={p_value:.4f}, reject H0)"
         
         return f"No causal relationship detected (p={p_value:.4f}, fail to reject H0)"
     
     def _generate_business_days(self, date_range: DateRange) -> List[date]:
-        """Generate business day dates for range (Rule 1)."""
+        """Generate business day dates for range."""
         # TODO: Filter weekends and holidays
         start = date_range.start_date
         end = date_range.end_date
@@ -257,6 +257,6 @@ class ConfoundingHandlerService:
         return [d.date() for d in days]
     
     def _generate_mock_commodity_values(self, date_range: DateRange) -> List[float]:
-        """Generate mock commodity prices (Rule 1)."""
+        """Generate mock commodity prices."""
         days_count = date_range.days_count
         return np.random.uniform(100.0, 500.0, days_count).tolist()

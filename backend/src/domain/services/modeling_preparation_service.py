@@ -144,7 +144,7 @@ class ModelingPreparationService:
         stock_features: pd.DataFrame,
         news_features: pd.DataFrame,
     ) -> pd.DataFrame:
-        """Merge stock and news features for unsupervised learning (Rule 1)."""
+        """Merge stock and news features for unsupervised learning."""
         if stock_features.empty or news_features.empty:
             return pd.DataFrame()
         
@@ -161,7 +161,7 @@ class ModelingPreparationService:
         return merged
     
     def _extract_unsupervised_features(self, df: pd.DataFrame) -> np.ndarray:
-        """Extract unsupervised feature columns (Rule 1)."""
+        """Extract unsupervised feature columns."""
         feature_cols = self._get_unsupervised_feature_names()
         
         features_present = [col for col in feature_cols if col in df.columns]
@@ -173,7 +173,7 @@ class ModelingPreparationService:
         return self._normalize_features(features_array)
     
     def _get_unsupervised_feature_names(self) -> List[str]:
-        """Get list of unsupervised feature column names (Rule 1)."""
+        """Get list of unsupervised feature column names."""
         return [
             "sentiment_score",
             "news_frequency",
@@ -187,7 +187,7 @@ class ModelingPreparationService:
         news_features: pd.DataFrame,
         control_variables: pd.DataFrame,
     ) -> pd.DataFrame:
-        """Merge all features for supervised learning (Rule 1)."""
+        """Merge all features for supervised learning."""
         if stock_features.empty or news_features.empty:
             return pd.DataFrame()
         
@@ -208,23 +208,27 @@ class ModelingPreparationService:
         return merged
     
     def _extract_supervised_features(self, df: pd.DataFrame) -> np.ndarray:
-        """Extract supervised feature columns with lags (Rule 1)."""
+        """Extract supervised feature columns with lags — returns unnormalized values.
+
+        Normalization is intentionally deferred to each walk-forward fold so that
+        min/max parameters are derived exclusively from training data, preventing
+        leakage of test-set statistics into the training phase.
+        """
         feature_cols = self._get_supervised_feature_names()
-        
+
         features_present = [col for col in feature_cols if col in df.columns]
-        
+
         if not features_present:
             return np.array([]).reshape(0, len(feature_cols))
-        
+
         features_df = df[features_present].fillna(0.0)
-        
-        # Add lagged features (t-1, t-2, t-3)
+
         lagged_features = self._add_lagged_features(features_df)
-        
-        return self._normalize_features(lagged_features.values)
+
+        return lagged_features.values
     
     def _add_lagged_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add lagged versions of features (Rule 1)."""
+        """Add lagged versions of features."""
         lagged = df.copy()
         
         for lag in [1, 2, 3]:
@@ -235,7 +239,7 @@ class ModelingPreparationService:
         return lagged.dropna()
     
     def _get_supervised_feature_names(self) -> List[str]:
-        """Get list of supervised feature column names (Rule 1)."""
+        """Get list of supervised feature column names."""
         base_features = [
             "sentiment_score",
             "news_frequency",
@@ -252,7 +256,7 @@ class ModelingPreparationService:
         target_prices: pd.DataFrame,
         classification: bool = False,
     ) -> np.ndarray:
-        """Extract target variable for supervised learning (Rule 1)."""
+        """Extract target variable for supervised learning."""
         if target_prices.empty:
             return np.array([])
         
@@ -267,7 +271,7 @@ class ModelingPreparationService:
         return targets
     
     def _discretize_targets(self, targets: np.ndarray) -> np.ndarray:
-        """Convert regression targets to classification classes (Rule 1)."""
+        """Convert regression targets to classification classes."""
         # Classes: 0=Baixa (<-2%), 1=Normal ([-2%, +2%]), 2=Alta (>+2%)
         classes = np.zeros(len(targets), dtype=int)
         
@@ -278,14 +282,14 @@ class ModelingPreparationService:
         return classes
     
     def _extract_dates(self, df: pd.DataFrame) -> List[str]:
-        """Extract dates from dataframe (Rule 1)."""
+        """Extract dates from dataframe."""
         if "date" not in df.columns:
             return []
         
         return df["date"].astype(str).tolist()
     
     def _normalize_features(self, features: np.ndarray) -> np.ndarray:
-        """Normalize features to 0-1 scale per column (Rule 1)."""
+        """Normalize features to 0-1 scale per column."""
         if features.size == 0:
             return features
         
@@ -310,18 +314,25 @@ class ModelingPreparationService:
         test_size: int,
         split_id: int,
     ) -> TrainTestSplit:
-        """Create a single walk-forward split (Rule 1)."""
+        """Create a single walk-forward split with per-fold normalization.
+
+        Normalization parameters (min/max) are computed on training data only,
+        then applied to the test slice — guaranteeing no leakage across folds.
+        """
         train_end_idx = start_idx + train_size
         test_end_idx = train_end_idx + test_size
-        
-        train_X = dataset.X[start_idx:train_end_idx]
+
+        raw_train_X = dataset.X[start_idx:train_end_idx]
+        raw_test_X = dataset.X[train_end_idx:test_end_idx]
+
+        train_X, test_X = self._normalize_fold(raw_train_X, raw_test_X)
+
         train_y = dataset.y[start_idx:train_end_idx]
-        test_X = dataset.X[train_end_idx:test_end_idx]
         test_y = dataset.y[train_end_idx:test_end_idx]
-        
+
         train_dates = dataset.dates[start_idx:train_end_idx]
         test_dates = dataset.dates[train_end_idx:test_end_idx]
-        
+
         return TrainTestSplit(
             train_X=train_X,
             train_y=train_y,
@@ -331,9 +342,27 @@ class ModelingPreparationService:
             test_dates=test_dates,
             split_id=split_id,
         )
+
+    def _normalize_fold(
+        self,
+        train: np.ndarray,
+        test: np.ndarray,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Fit min-max scaler on train, apply the same params to test."""
+        if train.size == 0:
+            return train, test
+
+        min_vals = np.nanmin(train, axis=0)
+        max_vals = np.nanmax(train, axis=0)
+        ranges = np.where(max_vals == min_vals, 1.0, max_vals - min_vals)
+
+        norm_train = np.nan_to_num((train - min_vals) / ranges, nan=0.0, posinf=0.0, neginf=0.0)
+        norm_test = np.nan_to_num((test - min_vals) / ranges, nan=0.0, posinf=0.0, neginf=0.0)
+
+        return norm_train, norm_test
     
     def _create_empty_unsupervised_dataset(self) -> UnsupervisedDataset:
-        """Create empty unsupervised dataset (Rule 2: no else)."""
+        """Create empty unsupervised dataset."""
         return UnsupervisedDataset(
             features=np.array([]),
             feature_names=[],
@@ -341,7 +370,7 @@ class ModelingPreparationService:
         )
     
     def _create_empty_supervised_dataset(self) -> SupervisedDataset:
-        """Create empty supervised dataset (Rule 2: no else)."""
+        """Create empty supervised dataset."""
         return SupervisedDataset(
             X=np.array([]),
             y=np.array([]),

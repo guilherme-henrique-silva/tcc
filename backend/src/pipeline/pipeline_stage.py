@@ -1,4 +1,4 @@
-"""Abstract base class for pipeline stages (Rule 7: Keep entities small)."""
+"""Abstract base class for pipeline stages."""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -8,7 +8,7 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class PipelineStageResult:
-    """Encapsulates result of pipeline stage execution (Rule 4: First Class Collection)."""
+    """Encapsulates result of pipeline stage execution."""
 
     stage_name: str
     status: str  # "SUCCESS", "FAILED", "SKIPPED"
@@ -45,7 +45,7 @@ ProgressCallback = Callable[[SubStageTag], None]
 
 
 class PipelineStage(ABC):
-    """Abstract base for all pipeline stages (Rule 7: small entities)."""
+    """Abstract base for all pipeline stages."""
 
     def __init__(self, stage_name: str):
         """Initialize stage with name."""
@@ -70,7 +70,7 @@ class PipelineStage(ABC):
 
     @abstractmethod
     def validate(self) -> bool:
-        """Validate stage prerequisites (Rule 2: no else, early return)."""
+        """Validate stage prerequisites."""
         pass
 
     def substages(self) -> List[str]:
@@ -82,7 +82,7 @@ class PipelineStage(ABC):
         on_substage: Optional[ProgressCallback],
         substage_name: str,
     ) -> None:
-        """Emite uma SubStageTag para o callback de progresso (Rule 1: delegate)."""
+        """Emite uma SubStageTag para o callback de progresso."""
         if not on_substage:
             return
 
@@ -107,7 +107,7 @@ class PipelineStage(ABC):
         end_time: datetime,
         data: Dict[str, Any],
     ) -> PipelineStageResult:
-        """Create success result (Rule 1: delegate to helper)."""
+        """Create success result."""
         return PipelineStageResult(
             stage_name=self.stage_name,
             status="SUCCESS",
@@ -122,7 +122,7 @@ class PipelineStage(ABC):
         end_time: datetime,
         error_message: str,
     ) -> PipelineStageResult:
-        """Create failure result (Rule 1)."""
+        """Create failure result."""
         return PipelineStageResult(
             stage_name=self.stage_name,
             status="FAILED",

@@ -52,6 +52,15 @@ _LIGHT_CSS = f"""
     div[data-testid="stExpander"] {{ background-color: {_LIGHT.tertiary}; color: {_LIGHT.text}; }}
     div[data-testid="stNotification"] {{ color: {_LIGHT.text}; }}
     .stApp a {{ color: {_LIGHT.primary}; }}
+    /* Date input */
+    [data-baseweb="input"] {{ background-color: {_LIGHT.background} !important; color: {_LIGHT.text} !important; }}
+    [data-baseweb="input"] input {{ background-color: {_LIGHT.background} !important; color: {_LIGHT.text} !important; }}
+    /* Calendar popup */
+    [data-baseweb="calendar"] {{ background-color: {_LIGHT.surface} !important; color: {_LIGHT.text} !important; }}
+    [data-baseweb="calendar"] * {{ background-color: {_LIGHT.surface} !important; color: {_LIGHT.text} !important; }}
+    /* Buttons */
+    .stButton > button {{ background-color: {_LIGHT.primary} !important; color: #FFFFFF !important; border: none !important; }}
+    .stButton > button:hover {{ background-color: {_LIGHT.highlight} !important; }}
 </style>
 """
 

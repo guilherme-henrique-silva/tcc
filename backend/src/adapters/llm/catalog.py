@@ -10,7 +10,7 @@ STATUS_DOWNLOADING = "downloading"  # download em andamento → 🔁 fazendo dow
 
 
 def resolve_local_dir(models_dir: str, path: str) -> Path:
-    """Resolve a pasta local de um modelo, sem duplicar o nome da pasta base (Rule 1)."""
+    """Resolve a pasta local de um modelo, sem duplicar o nome da pasta base."""
     p = Path(path)
 
     if p.is_absolute():
@@ -54,7 +54,7 @@ def list_with_status(
 
 
 def find_by_path(models: List[Dict[str, str]], path: str) -> Optional[Dict[str, str]]:
-    """Return the catalog entry whose `path` matches, or None (Rule 1)."""
+    """Return the catalog entry whose `path` matches, or None."""
     for model in models:
         if str(model.get("path", "")) == path:
             return model
@@ -63,7 +63,7 @@ def find_by_path(models: List[Dict[str, str]], path: str) -> Optional[Dict[str, 
 
 
 def repo_id_for(model: Dict[str, str]) -> str:
-    """Resolve the HuggingFace repo id: explicit `repo`, else the path basename (Rule 1)."""
+    """Resolve the HuggingFace repo id: explicit `repo`, else the path basename."""
     repo = model.get("repo")
     if repo:
         return str(repo)
@@ -72,7 +72,7 @@ def repo_id_for(model: Dict[str, str]) -> str:
 
 
 def _has_content(local_dir: Path) -> bool:
-    """Return True when the model directory exists and holds at least one file (Rule 1)."""
+    """Return True when the model directory exists and holds at least one file."""
     if not local_dir.is_dir():
         return False
 

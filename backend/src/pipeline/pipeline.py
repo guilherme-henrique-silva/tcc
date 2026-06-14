@@ -38,7 +38,7 @@ class StageName(str, Enum):
 
 @dataclass(frozen=True)
 class PipelineResult:
-    """Encapsulates pipeline execution result (Rule 4: First Class Collection)."""
+    """Encapsulates pipeline execution result."""
 
     pipeline_id: str
     status: str  # "SUCCESS", "FAILED"
@@ -51,7 +51,7 @@ class PipelineResult:
 
 
 class DataPipeline:
-    """Main orchestrator for entire data processing pipeline (Rule 7: small entity)."""
+    """Main orchestrator for entire data processing pipeline."""
 
     def __init__(
         self,
@@ -140,7 +140,7 @@ class DataPipeline:
             self._record_run_end(datetime.now())
 
     def resume_from_checkpoint(self, checkpoint_id: str) -> PipelineResult:
-        """Resume pipeline from saved checkpoint (Rule 1: delegate)."""
+        """Resume pipeline from saved checkpoint."""
         try:
             checkpoint = self.checkpoint_manager.load_checkpoint(checkpoint_id)
 
@@ -171,7 +171,7 @@ class DataPipeline:
         date_range_end,
         news_file_path: str = None,
     ) -> bool:
-        """Validate pipeline input parameters (Rule 2: no else)."""
+        """Validate pipeline input parameters."""
         if not date_range_start:
             return False
 
@@ -197,7 +197,7 @@ class DataPipeline:
         self.container.get_storage().finish_pipeline_proc(self.pipeline_id, end_time)
 
     def _initialize_stages(self) -> List:
-        """Initialize all pipeline stages, Docling as stage 0 (Rule 1)."""
+        """Initialize all pipeline stages, Docling as stage 0."""
         data_source = self.container.get_data_source()
         tickers = self._parse_tickers()
 
@@ -223,7 +223,7 @@ class DataPipeline:
         stage,
         enabled_stages: Optional[Set[StageName]],
     ) -> bool:
-        """Return True when the stage is not in the enabled set (Rule 1)."""
+        """Return True when the stage is not in the enabled set."""
         if enabled_stages is None:
             return False
 
@@ -231,7 +231,7 @@ class DataPipeline:
         return stage.stage_name not in enabled_values
 
     def _stage_value(self, name) -> str:
-        """Normalize a StageName/str to its string value (Rule 1)."""
+        """Normalize a StageName/str to its string value."""
         if isinstance(name, StageName):
             return name.value
 
@@ -243,7 +243,7 @@ class DataPipeline:
         input_data: Dict,
         on_substage: Optional[ProgressCallback],
     ) -> PipelineStageResult:
-        """Execute single stage with error handling (Rule 1)."""
+        """Execute single stage with error handling."""
         if not stage.validate():
             return PipelineStageResult(
                 stage_name=stage.stage_name,
@@ -270,7 +270,7 @@ class DataPipeline:
         use_llm_treatment: bool = False,
         treatment_model_path: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Create initial input for first stage (Rule 1)."""
+        """Create initial input for first stage."""
         return {
             "date_range": {
                 "start_date": date_range_start,
@@ -288,7 +288,7 @@ class DataPipeline:
         input_data: Dict,
         stage_output: Dict,
     ) -> Dict[str, Any]:
-        """Merge stage output with input for next stage (Rule 1)."""
+        """Merge stage output with input for next stage."""
         merged = input_data.copy()
 
         if stage_output:
@@ -297,7 +297,7 @@ class DataPipeline:
         return merged
 
     def _parse_tickers(self) -> List[str]:
-        """Parse tickers from configuration (Rule 1)."""
+        """Parse tickers from configuration."""
         tickers = self.config.YFINANCE_TICKERS
 
         if not tickers:
@@ -306,7 +306,7 @@ class DataPipeline:
         return [t.strip() for t in tickers]
 
     def _create_checkpoint_manager(self) -> CheckpointManager:
-        """Create checkpoint manager instance (Rule 1)."""
+        """Create checkpoint manager instance."""
         checkpoint_dir = self.config.CHECKPOINT_DIR
         return CheckpointManager(checkpoint_dir)
 
@@ -317,7 +317,7 @@ class DataPipeline:
         stages_executed: List[str],
         stage_results: Dict,
     ) -> PipelineResult:
-        """Create successful pipeline result (Rule 1)."""
+        """Create successful pipeline result."""
         return PipelineResult(
             pipeline_id=self.pipeline_id,
             status="SUCCESS",
@@ -335,7 +335,7 @@ class DataPipeline:
         stage_results: Dict,
         error_message: str,
     ) -> PipelineResult:
-        """Create failed pipeline result (Rule 1)."""
+        """Create failed pipeline result."""
         return PipelineResult(
             pipeline_id=self.pipeline_id,
             status="FAILED",
@@ -347,7 +347,7 @@ class DataPipeline:
         )
 
     def _create_checkpoint_not_found_result(self, checkpoint_id: str) -> PipelineResult:
-        """Create result for missing checkpoint (Rule 1)."""
+        """Create result for missing checkpoint."""
         return self._create_failed_result(
             datetime.now(),
             datetime.now(),

@@ -12,7 +12,7 @@ from src.domain.models import StockPrice, News, FeatureSet
 
 @dataclass(frozen=True)
 class StockFeatures:
-    """Encapsulates calculated stock features (Rule 4: First Class Collection)."""
+    """Encapsulates calculated stock features."""
     
     ticker: TickerSymbol
     date: datetime
@@ -24,7 +24,7 @@ class StockFeatures:
 
 @dataclass(frozen=True)
 class NewsFeatures:
-    """Encapsulates calculated news features (Rule 4)."""
+    """Encapsulates calculated news features."""
     
     date: datetime
     sentiment_score: float
@@ -34,7 +34,7 @@ class NewsFeatures:
 
 
 class FeatureEngineeringService:
-    """Service for calculating features from stock prices and news (Rule 7: small entities)."""
+    """Service for calculating features from stock prices and news."""
     
     def __init__(self, volatility_window: int = 20, anomaly_std_threshold: float = 2.0):
         """Initialize with configuration parameters."""
@@ -102,11 +102,11 @@ class FeatureEngineeringService:
         return features_df
     
     def _sort_prices_by_date(self, prices: List[StockPrice]) -> List[StockPrice]:
-        """Sort prices chronologically (Rule 1: delegate to helper)."""
+        """Sort prices chronologically."""
         return sorted(prices, key=lambda p: p.date)
     
     def _convert_prices_to_dataframe(self, prices: List[StockPrice]) -> pd.DataFrame:
-        """Convert StockPrice list to DataFrame for calculations (Rule 1)."""
+        """Convert StockPrice list to DataFrame for calculations."""
         return pd.DataFrame({
             "date": [p.date for p in prices],
             "close": [p.close_price for p in prices],
@@ -116,16 +116,16 @@ class FeatureEngineeringService:
         })
     
     def _calculate_returns(self, prices_df: pd.DataFrame) -> pd.Series:
-        """Calculate daily percentage returns (Rule 1)."""
+        """Calculate daily percentage returns."""
         return prices_df["close"].pct_change() * 100
     
     def _calculate_volatility(self, prices_df: pd.DataFrame) -> pd.Series:
-        """Calculate rolling volatility over window (Rule 1)."""
+        """Calculate rolling volatility over window."""
         returns = self._calculate_returns(prices_df)
         return returns.rolling(window=self.volatility_window).std()
     
     def _normalize_volume(self, prices_df: pd.DataFrame) -> pd.Series:
-        """Normalize volume to 0-1 scale (Rule 1)."""
+        """Normalize volume to 0-1 scale."""
         volume_min = prices_df["volume"].min()
         volume_max = prices_df["volume"].max()
         
@@ -135,7 +135,7 @@ class FeatureEngineeringService:
         return (prices_df["volume"] - volume_min) / (volume_max - volume_min)
     
     def _detect_anomalies(self, features_df: pd.DataFrame) -> pd.Series:
-        """Detect anomalies using standard deviation threshold (Rule 1)."""
+        """Detect anomalies using standard deviation threshold."""
         returns = features_df["daily_return_pct"]
         std_dev = returns.std()
         mean_return = returns.mean()
@@ -150,7 +150,7 @@ class FeatureEngineeringService:
         news_items: List[News],
         date_range: DateRange,
     ) -> List[News]:
-        """Filter news items within date range (Rule 2: no else, early return)."""
+        """Filter news items within date range."""
         if not news_items:
             return []
         
@@ -160,7 +160,7 @@ class FeatureEngineeringService:
         ]
     
     def _aggregate_sentiment(self, news_items: List[News]) -> List[float]:
-        """Aggregate sentiment scores by day (Rule 1)."""
+        """Aggregate sentiment scores by day."""
         if not news_items:
             return []
         
@@ -174,7 +174,7 @@ class FeatureEngineeringService:
         self,
         news_items: List[News],
     ) -> Dict[str, List[float]]:
-        """Group sentiment scores by date (Rule 1)."""
+        """Group sentiment scores by date."""
         grouped = {}
         
         for item in news_items:
@@ -189,19 +189,19 @@ class FeatureEngineeringService:
         return grouped
     
     def _calculate_daily_sentiment_average(self, scores: List[float]) -> float:
-        """Calculate average sentiment for day (Rule 1)."""
+        """Calculate average sentiment for day."""
         if not scores:
             return 0.0
         
         return sum(scores) / len(scores)
     
     def _count_news_frequency(self, news_items: List[News]) -> List[int]:
-        """Count news frequency by day (Rule 1)."""
+        """Count news frequency by day."""
         frequency_by_date = self._group_news_by_date(news_items)
         return list(frequency_by_date.values())
     
     def _group_news_by_date(self, news_items: List[News]) -> Dict[str, int]:
-        """Group and count news by date (Rule 1)."""
+        """Group and count news by date."""
         grouped = {}
         
         for item in news_items:
@@ -214,7 +214,7 @@ class FeatureEngineeringService:
         self,
         prices_dict: Dict[str, List[StockPrice]],
     ) -> List[float]:
-        """Compute correlation with BBAS3 (Rule 1)."""
+        """Compute correlation with BBAS3."""
         correlations = []
         
         for ticker, prices in prices_dict.items():
@@ -234,7 +234,7 @@ class FeatureEngineeringService:
         bbas3_prices: List[StockPrice],
         ticker_prices: List[StockPrice],
     ) -> float:
-        """Calculate correlation between two price series (Rule 1)."""
+        """Calculate correlation between two price series."""
         if not bbas3_prices or not ticker_prices:
             return 0.0
         
@@ -250,7 +250,7 @@ class FeatureEngineeringService:
         self,
         prices_dict: Dict[str, List[StockPrice]],
     ) -> List[float]:
-        """Compute synchronization score (Rule 1)."""
+        """Compute synchronization score."""
         sync_scores = []
         
         for ticker in prices_dict.keys():
@@ -267,7 +267,7 @@ class FeatureEngineeringService:
         prices_dict: Dict[str, List[StockPrice]],
         ticker: str,
     ) -> float:
-        """Calculate synchronization between ticker and BBAS3 (Rule 1)."""
+        """Calculate synchronization between ticker and BBAS3."""
         if ticker not in prices_dict:
             return 0.0
         

@@ -7,7 +7,7 @@ from src.ports.data_source import NewsProcessorPort
 
 
 class SentimentAnalyzerAdapter(NewsProcessorPort):
-    """Adapter for sentiment analysis using transformers BERT model (Rule 7: small entity)."""
+    """Adapter for sentiment analysis using transformers BERT model."""
     
     def __init__(self):
         """Initialize sentiment analyzer."""
@@ -39,7 +39,7 @@ class SentimentAnalyzerAdapter(NewsProcessorPort):
         pass
     
     def _load_model(self):
-        """Load pre-trained sentiment model (Rule 1)."""
+        """Load pre-trained sentiment model."""
         try:
             from transformers import pipeline
             
@@ -53,7 +53,7 @@ class SentimentAnalyzerAdapter(NewsProcessorPort):
             return None
     
     def _preprocess_text(self, text: str) -> str:
-        """Preprocess text for sentiment analysis (Rule 1)."""
+        """Preprocess text for sentiment analysis."""
         if not text:
             return ""
         
@@ -66,7 +66,7 @@ class SentimentAnalyzerAdapter(NewsProcessorPort):
         return clean_text
     
     def _predict_sentiment(self, text: str) -> str:
-        """Predict sentiment using model (Rule 1)."""
+        """Predict sentiment using model."""
         if not self.model:
             return "NEUTRAL"
         
@@ -85,7 +85,7 @@ class SentimentAnalyzerAdapter(NewsProcessorPort):
             return "NEUTRAL"
     
     def _simplify_sentiment_label(self, label: str) -> str:
-        """Convert model label to simple sentiment (Rule 1)."""
+        """Convert model label to simple sentiment."""
         label_lower = label.lower()
         
         if "negative" in label_lower or "1 star" in label_lower or "2 star" in label_lower:
@@ -97,7 +97,7 @@ class SentimentAnalyzerAdapter(NewsProcessorPort):
         return "NEUTRAL"
     
     def _convert_to_sentiment_score(self, label: str) -> SentimentScore:
-        """Convert label to SentimentScore domain model (Rule 1)."""
+        """Convert label to SentimentScore domain model."""
         if label == "NEGATIVE":
             return SentimentScore(value=-1)
         elif label == "POSITIVE":

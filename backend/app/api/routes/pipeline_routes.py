@@ -235,7 +235,7 @@ async def list_checkpoints():
     return {"checkpoints": []}
 
 
-# Helper functions (Rule 7: Keep methods small)
+# Helper functions
 
 def _downloads_in_progress() -> Set[str]:
     """Snapshot dos caminhos de modelos em download."""
@@ -332,7 +332,7 @@ def _parse_enabled_stages(
 
 
 def _to_run_response(result) -> PipelineRunResponse:
-    """Map a PipelineResult into the API response DTO (Rule 1)."""
+    """Map a PipelineResult into the API response DTO."""
     stage_results = {
         name: StageResultDTO(
             stage_name=stage_result.stage_name,

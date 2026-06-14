@@ -19,13 +19,13 @@ class ApiLlmAdapter(LlmPort):
         self._agent = agent
 
     def treat_news(self, markdown: str, *, prompt: str) -> str:
-        """Send prompt + markdown to the model and return the cleaned text (Rule 1)."""
+        """Send prompt + markdown to the model and return the cleaned text."""
         agent = self._ensure_agent()
         result = agent.run_sync(f"{prompt}\n\n---\n\n{markdown}")
         return result.data
 
     def _ensure_agent(self):
-        """Build (once) the Pydantic AI agent for the configured provider (Rule 1)."""
+        """Build (once) the Pydantic AI agent for the configured provider."""
         if self._agent is not None:
             return self._agent
 

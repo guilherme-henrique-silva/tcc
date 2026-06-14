@@ -26,7 +26,7 @@ class DoclingTransformStage(PipelineStage):
         return ["validar_links", "converter_markdown", "registrar_proc_news"]
 
     def validate(self) -> bool:
-        """Validate converter availability (Rule 2)."""
+        """Validate converter availability."""
         return self.converter is not None
 
     def execute(
@@ -34,7 +34,7 @@ class DoclingTransformStage(PipelineStage):
         input_data: Dict[str, Any],
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineStageResult:
-        """Convert news links into Markdown (Rule 1: delegate)."""
+        """Convert news links into Markdown."""
         start_time = datetime.now()
 
         try:
@@ -63,7 +63,7 @@ class DoclingTransformStage(PipelineStage):
             )
 
     def _extract_links(self, input_data: Dict[str, Any]) -> List[str]:
-        """Accept list[str] or a JSON string/object containing links (Rule 1)."""
+        """Accept list[str] or a JSON string/object containing links."""
         raw = input_data.get("news_links")
 
         if raw is None:
@@ -99,7 +99,7 @@ class DoclingTransformStage(PipelineStage):
         return []
 
     def _convert_batch(self, links: List[str]) -> List[Dict[str, Any]]:
-        """Convert each link into Markdown, ignoring non-textual media (Rule 1)."""
+        """Convert each link into Markdown, ignoring non-textual media."""
         results = []
 
         for url in links:
@@ -108,7 +108,7 @@ class DoclingTransformStage(PipelineStage):
         return results
 
     def _convert_single(self, url: str) -> Dict[str, Any]:
-        """Convert one link, capturing success/failure per item (Rule 1)."""
+        """Convert one link, capturing success/failure per item."""
         site = self.converter.site_name(url)
 
         try:
@@ -134,7 +134,7 @@ class DoclingTransformStage(PipelineStage):
         markdowns: List[Dict[str, Any]],
         pipeline_id: Optional[str],
     ) -> None:
-        """Persist a PIPELINE_PROC_NEWS row per link, tagged with the run uuid (Rule 1)."""
+        """Persist a PIPELINE_PROC_NEWS row per link, tagged with the run uuid."""
         if not self.repo:
             return
 
@@ -149,7 +149,7 @@ class DoclingTransformStage(PipelineStage):
             self.repo.save_proc_news(record)
 
     def _create_output_data(self, markdowns: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Create output data for next stage (Rule 1)."""
+        """Create output data for next stage."""
         return {
             "news_markdowns": markdowns,
             "docling_timestamp": datetime.now().isoformat(),

@@ -16,7 +16,7 @@ class ProcNewsRecord:
     proc_id: Optional[str] = None     # uuid da execução (FK lógica p/ PIPELINE_PROC_ID)
 
     def to_dict(self) -> Dict[str, object]:
-        """Serializa o registro no formato das colunas da tabela (Rule 1)."""
+        """Serializa o registro no formato das colunas da tabela."""
         return {
             "URL": self.url,
             "PROC_ID": self.proc_id,
@@ -27,7 +27,7 @@ class ProcNewsRecord:
 
     @classmethod
     def from_row(cls, row: Dict[str, object]) -> "ProcNewsRecord":
-        """Reconstrói o registro a partir de uma linha da tabela (Rule 1)."""
+        """Reconstrói o registro a partir de uma linha da tabela."""
         proc_id = row.get("PROC_ID")
         return cls(
             url=str(row["URL"]),
@@ -39,7 +39,7 @@ class ProcNewsRecord:
 
     @staticmethod
     def _parse_timestamp(value: object) -> datetime:
-        """Parse do timestamp armazenado (Rule 1)."""
+        """Parse do timestamp armazenado."""
         if isinstance(value, datetime):
             return value
 

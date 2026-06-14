@@ -12,7 +12,7 @@ from backend.src.pipeline.stages import (
 
 
 class MockStage(PipelineStage):
-    """Mock stage for testing (Rule 7: small test class)."""
+    """Mock stage for testing."""
     
     def execute(self, input_data, on_substage=None):
         """Mock execution."""

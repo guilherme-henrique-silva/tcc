@@ -12,7 +12,6 @@ class FeatureSet:
     Base class for feature collections.
     
     Encapsulates feature data and provides methods for manipulation.
-    Rule 4 (First Class Collections): Collections have their own behavior.
     """
     
     data: pd.DataFrame = field(default_factory=pd.DataFrame)

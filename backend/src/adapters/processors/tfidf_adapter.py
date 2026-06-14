@@ -9,7 +9,7 @@ from src.ports.data_source import NewsProcessorPort
 
 
 class TfIdfAdapter(NewsProcessorPort):
-    """Adapter for TF-IDF feature extraction using scikit-learn (Rule 7: small entity)."""
+    """Adapter for TF-IDF feature extraction using scikit-learn."""
     
     def __init__(self, n_components: int = 20):
         """Initialize TF-IDF extractor with target dimensionality."""
@@ -54,7 +54,7 @@ class TfIdfAdapter(NewsProcessorPort):
             return None
     
     def _create_vectorizer(self):
-        """Create TfidfVectorizer instance (Rule 1)."""
+        """Create TfidfVectorizer instance."""
         return TfidfVectorizer(
             max_features=100,
             stop_words=self._get_portuguese_stopwords(),
@@ -64,11 +64,11 @@ class TfIdfAdapter(NewsProcessorPort):
         )
     
     def _create_pca(self):
-        """Create PCA instance (Rule 1)."""
+        """Create PCA instance."""
         return PCA(n_components=self.n_components)
     
     def _get_portuguese_stopwords(self) -> List[str]:
-        """Get Portuguese stopwords (Rule 1)."""
+        """Get Portuguese stopwords."""
         try:
             from nltk.corpus import stopwords
             
@@ -83,7 +83,7 @@ class TfIdfAdapter(NewsProcessorPort):
             ]
     
     def _filter_empty_documents(self, documents: List[str]) -> List[str]:
-        """Filter out empty or whitespace-only documents (Rule 1)."""
+        """Filter out empty or whitespace-only documents."""
         clean_docs = []
         
         for doc in documents:
@@ -93,7 +93,7 @@ class TfIdfAdapter(NewsProcessorPort):
         return clean_docs
     
     def _compute_tfidf(self, documents: List[str]) -> Optional[np.ndarray]:
-        """Compute TF-IDF matrix (Rule 1)."""
+        """Compute TF-IDF matrix."""
         try:
             matrix = self.vectorizer.fit_transform(documents)
             return matrix.toarray()
@@ -102,7 +102,7 @@ class TfIdfAdapter(NewsProcessorPort):
             return None
     
     def _apply_pca(self, tfidf_matrix: np.ndarray, n_components: int) -> Optional[np.ndarray]:
-        """Apply PCA dimensionality reduction (Rule 1)."""
+        """Apply PCA dimensionality reduction."""
         try:
             # Ensure n_components doesn't exceed matrix dimensions
             n_comp = min(n_components, tfidf_matrix.shape[0], tfidf_matrix.shape[1])

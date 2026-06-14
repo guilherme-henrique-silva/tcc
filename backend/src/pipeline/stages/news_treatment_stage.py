@@ -36,7 +36,7 @@ class NewsTreatmentStage(PipelineStage):
         return ["selecionar_registros", "tratar_llm", "persistir_tratados"]
 
     def validate(self) -> bool:
-        """Validate storage availability (Rule 2: no else)."""
+        """Validate storage availability."""
         return self.storage is not None
 
     def execute(
@@ -44,7 +44,7 @@ class NewsTreatmentStage(PipelineStage):
         input_data: Dict[str, Any],
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineStageResult:
-        """Ensure a treated document exists per news item (Rule 1: delegate)."""
+        """Ensure a treated document exists per news item."""
         start_time = datetime.now()
 
         try:
@@ -69,7 +69,7 @@ class NewsTreatmentStage(PipelineStage):
             return self._create_failure_result(start_time, datetime.now(), str(e))
 
     def _select_entries(self, input_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Keep only successfully converted markdowns from Docling (Rule 1)."""
+        """Keep only successfully converted markdowns from Docling."""
         markdowns = input_data.get("news_markdowns") or []
         return [entry for entry in markdowns if entry.get("success")]
 
@@ -80,7 +80,7 @@ class NewsTreatmentStage(PipelineStage):
         use_llm: bool,
         model_path: Optional[str],
     ) -> Dict[str, Any]:
-        """Resolve the treated markdown for one entry, reusing or generating it (Rule 1)."""
+        """Resolve the treated markdown for one entry, reusing or generating it."""
         url = entry.get("url")
         existing = self.storage.get_treated_news(url) if url else None
 
@@ -99,7 +99,7 @@ class NewsTreatmentStage(PipelineStage):
         existing: TreatedNewsRecord,
         proc_id: Optional[str],
     ) -> Dict[str, Any]:
-        """Reuse a document treated earlier, re-stamping the current run (Rule 1)."""
+        """Reuse a document treated earlier, re-stamping the current run."""
         if proc_id and existing.proc_id != proc_id:
             self.storage.save_treated_news(
                 TreatedNewsRecord(
@@ -120,7 +120,7 @@ class NewsTreatmentStage(PipelineStage):
         proc_id: Optional[str],
         model_path: Optional[str],
     ) -> Dict[str, Any]:
-        """Treat a pending entry via the LLM and persist the result (Rule 1)."""
+        """Treat a pending entry via the LLM and persist the result."""
         llm = self._llm_provider(model_path)
         treated_markdown = llm.treat_news(
             entry.get("markdown", ""),
@@ -137,7 +137,7 @@ class NewsTreatmentStage(PipelineStage):
         return self._as_output(entry, treated_markdown, treated=True)
 
     def _passthrough(self, entry: Dict[str, Any]) -> Dict[str, Any]:
-        """Keep the raw markdown when no treatment is available (Rule 1)."""
+        """Keep the raw markdown when no treatment is available."""
         return self._as_output(entry, entry.get("markdown", ""), treated=False)
 
     def _as_output(
@@ -147,7 +147,7 @@ class NewsTreatmentStage(PipelineStage):
         *,
         treated: bool,
     ) -> Dict[str, Any]:
-        """Build the news entry consumed downstream by DataCollection (Rule 1)."""
+        """Build the news entry consumed downstream by DataCollection."""
         return {
             "url": entry.get("url"),
             "site": entry.get("site"),
@@ -157,7 +157,7 @@ class NewsTreatmentStage(PipelineStage):
         }
 
     def _create_output_data(self, treated: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Create output data for next stage, replacing news_markdowns (Rule 1)."""
+        """Create output data for next stage, replacing news_markdowns."""
         return {
             "news_markdowns": treated,
             "treatment_timestamp": datetime.now().isoformat(),

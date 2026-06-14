@@ -14,7 +14,7 @@ from src.domain.value_objects import TickerSymbol
 
 
 class FeatureEngineeringStage(PipelineStage):
-    """Stage for calculating features from stock and news data (Rule 7: small entity)."""
+    """Stage for calculating features from stock and news data."""
 
     def __init__(self):
         """Initialize feature engineering service."""
@@ -30,7 +30,7 @@ class FeatureEngineeringStage(PipelineStage):
         input_data: Dict[str, Any],
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineStageResult:
-        """Calculate features (Rule 1: delegate)."""
+        """Calculate features."""
         start_time = datetime.now()
 
         try:
@@ -73,19 +73,19 @@ class FeatureEngineeringStage(PipelineStage):
             )
     
     def validate(self) -> bool:
-        """Validate service availability (Rule 2)."""
+        """Validate service availability."""
         return self.service is not None
     
     def _extract_stock_prices(self, input_data: Dict[str, Any]) -> Dict[str, list]:
-        """Extract stock prices from input (Rule 1)."""
+        """Extract stock prices from input."""
         return input_data.get("stock_prices", {})
     
     def _extract_news_items(self, input_data: Dict[str, Any]) -> list:
-        """Extract news items from input (Rule 1)."""
+        """Extract news items from input."""
         return input_data.get("news_items", [])
     
     def _calculate_stock_features(self, stock_prices: Dict[str, list]) -> Dict[str, any]:
-        """Calculate stock features for all tickers (Rule 1)."""
+        """Calculate stock features for all tickers."""
         features_by_ticker = {}
         
         for ticker_str, prices in stock_prices.items():
@@ -103,7 +103,7 @@ class FeatureEngineeringStage(PipelineStage):
         news_items: list,
         input_data: Dict[str, Any],
     ) -> Dict[str, any]:
-        """Calculate news features (Rule 1)."""
+        """Calculate news features."""
         if not news_items:
             return {}
         
@@ -117,7 +117,7 @@ class FeatureEngineeringStage(PipelineStage):
             return {}
     
     def _calculate_competitor_features(self, stock_prices: Dict[str, list]) -> Dict[str, any]:
-        """Calculate competitor features (Rule 1)."""
+        """Calculate competitor features."""
         try:
             tickers = [TickerSymbol(t) for t in stock_prices.keys()]
             features_df = self.service.calculate_competitor_features(tickers, stock_prices)
@@ -133,7 +133,7 @@ class FeatureEngineeringStage(PipelineStage):
         news_features: Dict,
         competitor_features: Dict,
     ) -> Dict[str, Any]:
-        """Create output data for next stage (Rule 1)."""
+        """Create output data for next stage."""
         return {
             "stock_features": stock_features,
             "news_features": news_features,

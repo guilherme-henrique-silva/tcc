@@ -1,29 +1,28 @@
-# Especificação Técnica — Evolução da Pipeline (Iteração 2)
+# Especificação Técnica — Evolução da Pipeline (Iteração 3)
 
 > Documento derivado de [PROMPT_TO_SPEC.md](PROMPT_TO_SPEC.md). Formaliza os 10 requisitos
 > informais em requisitos rastreáveis com critérios de aceite, referenciando o código atual.
 > Princípios mantidos em toda a implementação: **Arquitetura Hexagonal (Ports & Adapters)**,
 > **Clean Code**, **Object Calisthenics** e **otimização de CPU/GPU**.
 >
-> A iteração anterior (dark mode, renomeação de páginas, banco sem Docker, etapa de tratamento,
-> LLM hexagonal, etc.) já está implementada e registrada no histórico do
-> [CHANGELOG.md](CHANGELOG.md).
+> As iterações anteriores (dark mode, renomeação de páginas, banco sem Docker, etapa de tratamento,
+> LLM hexagonal, chunking BCB, restrições de datas, esquema de cores configurável, etc.) já estão
+> implementadas e registradas no [CHANGELOG.md](CHANGELOG.md).
 
 ## Índice
 
 1. [Visão geral e escopo](#1-visão-geral-e-escopo)
-2. [R1 — Avaliação de refatoração da pipeline](#2-r1--avaliação-de-refatoração-da-pipeline)
-3. [R2 — Esquema de cores configurável e correção do light mode](#3-r2--esquema-de-cores-configurável-e-correção-do-light-mode)
-4. [R3 — Restrições de seleção de datas](#4-r3--restrições-de-seleção-de-datas)
-5. [R4 — Chunking de período nas APIs (BCB e yfinance)](#5-r4--chunking-de-período-nas-apis-bcb-e-yfinance)
-6. [R5 — Tela de coleta de notícias](#6-r5--tela-de-coleta-de-notícias)
-7. [R6 — Tela de executar pipeline](#7-r6--tela-de-executar-pipeline)
-8. [R7 — Tela de tratamento de notícias](#8-r7--tela-de-tratamento-de-notícias)
-9. [R8 — Remoção de números de seção](#9-r8--remoção-de-números-de-seção)
-10. [R9 — Atualização de testes](#10-r9--atualização-de-testes)
-11. [R10 — Documentação (README e CHANGELOG)](#11-r10--documentação-readme-e-changelog)
-12. [Variáveis de ambiente](#12-variáveis-de-ambiente)
-13. [Critérios de aceite globais](#13-critérios-de-aceite-globais)
+2. [R1 — Avaliação de refatoração + correção de data leakage](#2-r1--avaliação-de-refatoração--correção-de-data-leakage)
+3. [R2 — Correção do esquema de cores no light mode](#3-r2--correção-do-esquema-de-cores-no-light-mode)
+4. [R3 — Tela de upload: render do CSE e `url` obrigatório no CSV](#4-r3--tela-de-upload-render-do-cse-e-url-obrigatório-no-csv)
+5. [R4 — Embeds de redes sociais na conversão Docling](#5-r4--embeds-de-redes-sociais-na-conversão-docling)
+6. [R5 — Templates Docling e tratado com campo `category`](#6-r5--templates-docling-e-tratado-com-campo-category)
+7. [R6 — Tela de tratamento: editor à direita e botões aceitar/descartar](#7-r6--tela-de-tratamento-editor-à-direita-e-botões-aceitardescartar)
+8. [R7 — Remoção de números de seção](#8-r7--remoção-de-números-de-seção)
+9. [R8 — Atualização de testes](#9-r8--atualização-de-testes)
+10. [R9 — Documentação (README e CHANGELOG)](#10-r9--documentação-readme-e-changelog)
+11. [Variáveis de ambiente](#11-variáveis-de-ambiente)
+12. [Critérios de aceite globais](#12-critérios-de-aceite-globais)
 
 ---
 
@@ -31,423 +30,496 @@
 
 O projeto é uma pipeline de dados para análise do impacto de notícias sobre o preço da ação
 **BBAS3** (Banco do Brasil) e concorrentes (ITUB4, BBDC4, SANB11), descrita no
-[PLANO_DE_ACAO.md](PLANO_DE_ACAO.md). A arquitetura já separa **Backend** (FastAPI + hexagonal,
+[PLANO_DE_ACAO.md](PLANO_DE_ACAO.md). A arquitetura separa **Backend** (FastAPI + hexagonal,
 orquestrador [pipeline.py](backend/src/pipeline/pipeline.py)) e **Frontend** (Streamlit,
 [app.py](frontend/app.py) + [frontend/pages/](frontend/pages/)).
 
 ### Escopo desta iteração
-Os 10 requisitos abaixo: avaliação de refatoração, esquema de cores configurável e correção do
-light mode, restrições de datas, chunking de período nas APIs, ajustes na coleta de notícias
-(Docling, Google CSE, padrão de CSV), melhorias na tela de execução, ajustes no tratamento de
-notícias (editor com template, status no selectbox, enum de VRAM), remoção de números de seção,
-atualização de testes e documentação.
+
+Os 9 requisitos abaixo: correção de data leakage na modelagem, correção visual do light mode,
+render do Google CSE e `url` obrigatório no CSV, preservação de embeds sociais no Docling,
+templates de notícia com campo `category`, ajustes de layout e botões na tela de tratamento,
+remoção de números de seção, atualização de testes e documentação.
 
 ### Fora de escopo
-- **A coleta de notícias permanece manual** (limitação técnica do plano): o usuário cola links na
-  página de upload; nenhum crawler/scraper automatizado será criado.
-- A modelagem de ML não é reescrita — apenas avaliada (R1).
+
+- **A coleta de notícias permanece manual**: o usuário cola links na página de upload; nenhum
+  crawler/scraper automatizado será criado.
+- A metodologia de ML não é reescrita — apenas o leakage de normalização é corrigido (R1).
+- O dark mode não é alterado.
 
 ---
 
-## 2. R1 — Avaliação de refatoração da pipeline
+## 2. R1 — Avaliação de refatoração + correção de data leakage
 
-Análise da pipeline atual (estrutura e metodologia de ML) e veredito sobre necessidade de
-refatoração, considerando o escopo do TCC.
+### Avaliação de estrutura (confirmada da iteração anterior)
 
-### Achados — estrutura
 1. **Hexagonal saudável.** Ports em [backend/src/ports/](backend/src/ports/), adapters em
    [backend/src/adapters/](backend/src/adapters/) e orquestração em
-   [pipeline.py:199-219](backend/src/pipeline/pipeline.py#L199-L219) estão coerentes; a ordem de
-   etapas (docling → news_treatment → data_collection → feature_engineering → confounding_handling →
-   modeling_preparation) é consistente com os testes de orquestração.
-2. **Merge de saídas por sobrescrita.** `_merge_stage_output`
-   ([pipeline.py:286-297](backend/src/pipeline/pipeline.py#L286-L297)) faz `dict.update`; chaves
-   homônimas (ex.: `news_markdowns`) são sobrescritas pela etapa seguinte — comportamento esperado,
-   manter.
+   [pipeline.py](backend/src/pipeline/pipeline.py) estão coerentes.
+2. **Merge de saídas por sobrescrita.** `_merge_stage_output` usa `dict.update` — comportamento
+   esperado, manter.
 
-### Achados — metodologia de ML (PLANO_DE_ACAO.md §2.6)
-A metodologia proposta é adequada ao escopo. Ajustes **recomendados** (sem reescrita), a registrar
-como diretriz de implementação futura da etapa de modelagem:
-- **Evitar data leakage temporal.** TF-IDF, normalização/scaler e seleção de features devem ser
-  ajustados **apenas no conjunto de treino** dentro de cada janela de walk-forward; encapsular num
-  `Pipeline` do scikit-learn por fold em vez de transformar o dataset inteiro antes do split.
-- **Baseline antes de modelos complexos.** Estabelecer Regressão Linear / Logística e
-  *naïve forecast* (preço de T-1) como linha de base antes de Random Forest/XGBoost/LSTM; reportar
-  ganho relativo ao baseline, não só RMSE/Acurácia absolutos.
-- **Parcimônia de modelos.** Para a quantidade de dados de ~1 ano diário (~250 observações), LSTM
-  tende a sobreajustar; priorizar modelos lineares regularizados (Ridge/Lasso) e árvores com
-  validação walk-forward, mantendo LSTM como experimento opcional.
-- **Granger como validação, não seleção.** Usar o teste de Granger (p < 0,05) para sustentar a
-  narrativa causal, mantendo as variáveis de controle (Selic, USD/BRL, commodities, IBOV) no modelo
-  independentemente do resultado, para não introduzir viés de seleção.
+### Leakage identificado (a corrigir nesta iteração)
 
-### Veredito
-Refatoração **incremental**, não reescrita. As mudanças desta iteração são localizadas (cores,
-datas, chunking de período, UI de coleta/execução/tratamento, enum de VRAM, limpeza de docstrings).
+`_extract_supervised_features`
+([modeling_preparation_service.py:210-224](backend/src/domain/services/modeling_preparation_service.py#L210-L224))
+normaliza o dataset **inteiro** antes do split walk-forward, permitindo que os parâmetros do
+conjunto de teste (min/max) vazem para o treino de cada fold — violando a separação temporal.
 
-**Critério de aceite:** seção de avaliação presente no documento; as diretrizes de ML registradas;
-nenhuma alteração de comportamento da pipeline além do necessário para R2–R9.
-
----
-
-## 3. R2 — Esquema de cores configurável e correção do light mode
-
-O **modo claro** atualmente exibe aparência escura/contrastante demais; o **modo escuro** está
-adequado e **não deve ser alterado**.
-
-### Estado atual
-- O tema claro vem de [.streamlit/config.toml](frontend/.streamlit/config.toml)
-  (`primaryColor="#FF6B35"`, `backgroundColor="#FFFFFF"`, `textColor="#262730"`).
-- [theme.py](frontend/components/theme.py) só define `_DARK_CSS`; **não há paleta configurável** nem
-  CSS para o modo claro.
+`_normalize_features`
+([modeling_preparation_service.py:287-303](backend/src/domain/services/modeling_preparation_service.py#L287-L303))
+também é chamado de fora do loop de splits, sobre o array completo.
 
 ### Requisitos
-- Adicionar um **esquema de cores configurável** com 5 papéis: **primária, secundária, terciária,
-  texto e highlights**, centralizado em [theme.py](frontend/components/theme.py) (ex.: uma
-  `dataclass`/dict `LightPalette`/`DarkPalette`), evitando literais espalhados.
-- **Corrigir o light mode**: aplicar a paleta clara via CSS injetado (análogo ao `_DARK_CSS`),
-  garantindo fundo claro, texto escuro legível e uso comedido da cor primária — corrigindo a
-  aparência escura atual.
-- **Dark mode permanece intacto** (`_DARK_CSS` inalterado).
-- A paleta é a única fonte de verdade das cores; a troca claro/escuro continua pelo toggle existente
-  no sidebar.
 
-**Critério de aceite:** existe uma paleta configurável de 5 papéis; o modo claro exibe cores claras
-e texto legível; o modo escuro permanece como hoje; nenhuma cor é hardcoded fora da paleta.
+- Mover a normalização **para dentro** de `apply_walk_forward_split`
+  ([modeling_preparation_service.py:112-140](backend/src/domain/services/modeling_preparation_service.py#L112-L140)),
+  de modo que:
+  1. Os parâmetros (min/max) sejam ajustados **exclusivamente sobre os dados de treino** de cada fold.
+  2. Os mesmos parâmetros sejam aplicados ao conjunto de teste do fold correspondente.
+- `prepare_supervised_data` passa a retornar features **não normalizadas**; a normalização
+  acontece por fold dentro de `_create_walk_forward_split`.
+- `prepare_unsupervised_data` **não** passa por walk-forward e pode continuar normalizando sobre o
+  conjunto completo (comportamento adequado para PCA/clustering).
+- Manter os datasets de entrada imutáveis (frozen dataclasses); a normalização por fold pode usar
+  uma cópia local dos arrays de treino/teste dentro do método.
+
+### Diretrizes de ML (sem alteração de código, registradas como diretriz futura)
+
+- **Baseline antes de modelos complexos.** Regressão Linear e *naïve forecast* (preço de T-1)
+  antes de Random Forest/XGBoost/LSTM; reportar ganho relativo ao baseline.
+- **Parcimônia de modelos.** ~250 observações: priorizar Ridge/Lasso e árvores com walk-forward;
+  LSTM como experimento opcional.
+- **Granger como validação, não seleção.** Usar o teste (p < 0,05) para sustentar a narrativa
+  causal; manter variáveis de controle independentemente do resultado.
+
+### Critério de aceite
+
+A normalização do dataset supervisionado acontece por fold dentro de `apply_walk_forward_split`;
+os parâmetros do treino são aplicados ao teste; `prepare_unsupervised_data` permanece inalterado;
+testes existentes continuam verdes.
 
 ---
 
-## 4. R3 — Restrições de seleção de datas
-
-Adicionar restrições e feedback visual aos `st.date_input` do sidebar e da aba "Ações".
+## 3. R2 — Correção do esquema de cores no light mode
 
 ### Estado atual
-- Sidebar: [app.py:25-31](frontend/app.py#L25-L31), `key="global_date_range"` (tupla início/fim),
-  sem `min_value`/`max_value`.
-- Aba Ações: [upload_dados.py:116-129](frontend/pages/upload_dados.py#L116-L129), sem restrições,
-  grava em `st.session_state.date_range`.
+
+[frontend/components/theme.py:41-56](frontend/components/theme.py#L41-L56) injeta `_LIGHT_CSS`
+que cobre `stApp`, `stSidebar`, cabeçalhos, métricas e links, mas **não cobre**:
+- O toggle de modo escuro (`[data-testid="stToggle"]`) — fundo quase branco, invisível.
+- O `st.date_input` no sidebar e na aba Ações (`[data-baseweb="input"]`,
+  `[data-baseweb="calendar"]`) — renderiza com fundo escuro no light mode.
+- O botão "Verificar Status" e demais `st.button` — fundo escuro/contraste inadequado.
+
+A `_Palette _LIGHT` já existe com os 7 papéis; o `_DARK_CSS` está correto e **não deve ser
+alterado**.
 
 ### Requisitos
-1. **Data inicial (sidebar):** `min_value` = **data inicial preenchida na aba Ações** (compartilhada
-   via `st.session_state`). Se a regra for quebrada, exibir **feedback visual** (`st.warning`) e
-   **forçar a seleção para a data mínima**.
-2. **Data final (aba Ações):** se a data selecionada for **maior que a data atual**, **forçar para a
-   data de hoje** e exibir `st.warning` informando que o sistema ajustou a data final.
-3. **Data final (sidebar):** aplicar a **mesma** regra do item 2 (teto na data de hoje, com
-   feedback).
 
-### Implementação
-- A aba Ações grava a data inicial num `st.session_state` dedicado (ex.: `acoes_start_date`); o
-  sidebar lê esse valor como `min_value`.
-- Centralizar a lógica de "forçar e avisar" num helper reutilizável (ex.: em
-  [frontend/components/](frontend/components/)) para não duplicar entre sidebar e aba Ações.
+Ampliar `_LIGHT_CSS` adicionando regras CSS para os componentes ausentes, usando somente valores
+de `_LIGHT`:
 
-**Critério de aceite:** a data inicial do sidebar nunca fica abaixo da data inicial da aba Ações
-(com aviso e correção automática); datas finais acima de hoje são corrigidas para hoje com
-`st.warning` em ambos os locais.
+| Componente | Seletor CSS sugerido | Comportamento esperado |
+|---|---|---|
+| Toggle (track/thumb) | `[data-testid="stToggle"] > div`, `input[type="checkbox"] + div` | Fundo `_LIGHT.tertiary`, thumb visível |
+| `st.date_input` (input) | `[data-baseweb="input"] input`, `[data-baseweb="input"]` | `background: _LIGHT.background`, `color: _LIGHT.text` |
+| Calendário (popup) | `[data-baseweb="calendar"]`, `[data-baseweb="calendar"] *` | `background: _LIGHT.surface`, `color: _LIGHT.text` |
+| Botões | `.stButton > button` | `background: _LIGHT.primary`, `color: #FFFFFF` ou `_LIGHT.text` com contraste adequado |
+
+Todas as novas regras ficam em `_LIGHT_CSS`; a `_Palette` e `_DARK_CSS` permanecem intactas.
+
+### Critério de aceite
+
+No light mode: toggle, date_input e botões exibem fundo claro e texto legível; dark mode
+permanece visualmente idêntico ao estado atual.
 
 ---
 
-## 5. R4 — Chunking de período nas APIs (BCB e yfinance)
+## 4. R3 — Tela de upload: render do CSE e `url` obrigatório no CSV
 
-Quando a diferença entre data inicial e final for **>= 1 ano**, as requisições à API do BCB devem
-ser **fracionadas** em múltiplas chamadas com janelas de até ~1 ano (ex.: 01/01/2025–31/12/2025;
-15/06/2025–14/06/2026), abrangendo todo o período selecionado.
+### 4.1 Render do embed Google CSE
+
+#### Estado atual
+
+[upload_dados.py:63-85](frontend/pages/upload_dados.py#L63-L85) exibe um checkbox "Usar Google
+CSE" e, ao marcar, um `st.text_input` para o `cx`. Mas **não renderiza o embed HTML** do CSE,
+que é o comportamento esperado conforme o
+[PLANO_DE_ACAO.md](PLANO_DE_ACAO.md) (script + `<div class="gcse-search">`).
+
+#### Requisitos
+
+Após o usuário informar o `cx` (não vazio):
+1. Renderizar o embed via `streamlit.components.v1.html`, injetando:
+   ```html
+   <script async src="https://cse.google.com/cse.js?cx=<cx_informado>"></script>
+   <div class="gcse-search"></div>
+   ```
+2. O embed deve ter altura suficiente (ex.: `height=600`) para exibir os resultados.
+3. Nenhuma lógica de backend é necessária — o CSE funciona no browser via JavaScript.
+4. O `cx` fica armazenado em `st.session_state["google_cse_id"]` (já implementado).
+
+### 4.2 Campo `url` obrigatório no CSV
+
+#### Estado atual
+
+A aba CSV em [upload_dados.py:93-109](frontend/pages/upload_dados.py#L93-L109) documenta `url`
+como **opcional** ("❌ Não"). Porém `url` é:
+- **PRIMARY KEY** de `PIPELINE_PROC_NEWS`
+  ([sqlite_storage.py:329-336](backend/src/adapters/storage/sqlite_storage.py#L329-L336)) e
+  `PIPELINE_TREATED_NEWS`
+  ([sqlite_storage.py:367-375](backend/src/adapters/storage/sqlite_storage.py#L367-L375)).
+- Campo de frontmatter do documento tratado, necessário para associação entre etapas.
+
+O adapter [csv_news_adapter.py:58-91](backend/src/adapters/data_sources/csv_news_adapter.py#L58-L91)
+descarta linhas sem `title`/`content` mas **não valida `url`**, permitindo registros sem chave
+primária.
+
+#### Requisitos
+
+1. **Documentação (frontend):** atualizar a tabela de colunas em
+   [upload_dados.py](frontend/pages/upload_dados.py) para marcar `url` como `✅ Sim`.
+2. **Adapter (backend):** em `_create_news_from_row`
+   ([csv_news_adapter.py:58](backend/src/adapters/data_sources/csv_news_adapter.py#L58)),
+   adicionar verificação de `url` vazio/ausente e retornar `None` quando inválido (descarte
+   silencioso, mesma convenção de `title`/`content`).
+
+### Critério de aceite
+
+O embed do CSE é renderizado no browser ao informar um `cx` válido; `url` aparece como obrigatório
+na documentação da aba CSV; o adapter descarta linhas sem `url`.
+
+---
+
+## 5. R4 — Embeds de redes sociais na conversão Docling
 
 ### Estado atual
-- [bcb_api_adapter.py](backend/src/adapters/data_sources/bcb_api_adapter.py) faz GET direto, **sem
-  chunking**; datas vêm interpoladas das env vars de URL.
-- [date_range.py](backend/src/domain/value_objects/date_range.py) valida `start <= end` e calcula
-  `days_count`, mas **não tem método de divisão**.
-- [yfinance_adapter.py:52-54](backend/src/adapters/data_sources/yfinance_adapter.py#L52-L54) passa
-  `start`/`end` diretos ao yfinance.
+
+[docling_converter_adapter.py:29-33](backend/src/adapters/processors/docling_converter_adapter.py#L29-L33)
+chama `converter.convert(url).document.export_to_markdown()`. O Docling converte texto e tabelas,
+mas embeds de redes sociais (ex.: posts do x.com incorporados em notícias do G1) podem ser
+descartados ou reduzidos a texto plano dependendo da versão do Docling.
+
+O prompt de tratamento em
+[prompts.py:25-31](backend/src/adapters/llm/prompts.py#L25-L31) já instrui a LLM a:
+- Manter o **texto principal** dos comentários incorporados.
+- Formatar cada comentário em blockquote separado.
+- Ignorar usernames e demais elementos do bloco.
 
 ### Requisitos
-1. **DateRange:** adicionar método de fracionamento (ex.: `split(max_days=365)` →
-   `list[DateRange]`), respeitando o frozen dataclass e Object Calisthenics. Para período < 1 ano,
-   retorna a si mesmo (lista de 1 elemento); para >= 1 ano, gera janelas consecutivas, inclusivas e
-   sem sobreposição, cobrindo todo o intervalo.
-2. **BcbApiAdapter:** iterar os subintervalos retornados, montar uma requisição por janela e
-   **concatenar/deduplicar** os resultados (Selic e dólar/PTAX) antes de mapear para os DTOs.
-3. **yfinance:** **verificar** a limitação. Para dados **diários** (`interval=1d`) o yfinance não
-   impõe o mesmo teto de ~1 ano (esse limite vale para intervalos intradiários). Portanto:
-   - Se confirmado que não há limitação para o uso diário do projeto, **documentar a não-necessidade**
-     e **reutilizar o mesmo `DateRange.split`** apenas se for desejável padronizar o comportamento.
-   - Caso a verificação revele qualquer truncamento, aplicar a mesma lógica de chunking do BCB.
-4. **Default de datas:** manter **01/01/2025 a 31/12/2025** (já em `.env`/
-   [env_config.py:15-24](frontend/env_config.py#L15-L24)).
 
-**Critério de aceite:** períodos >= 1 ano nas requisições ao BCB são quebrados em múltiplas chamadas
-que, somadas, cobrem todo o intervalo, sem buracos nem duplicatas; a verificação do yfinance está
-documentada e a lógica aplicada se necessária; o default permanece 2025-01-01..2025-12-31.
+1. **Verificação:** documentar, após teste manual com a URL de exemplo
+   (`https://g1.globo.com/economia/noticia/2026/06/10/banco-do-brasil-fora-do-ar.ghtml`), se o
+   Docling preserva o texto dos embeds do x.com no markdown cru.
+   - **Caso o Docling preserve:** nenhuma alteração necessária; registrar o comportamento.
+   - **Caso o Docling descarte:** avaliar se é possível configurar o `DocumentConverter` para
+     incluir iframes/embeds, ou se a solução adequada é instruir a LLM a sinalizar a ausência.
+2. **Instrução da LLM:** confirmar que o prompt em
+   [prompts.py](backend/src/adapters/llm/prompts.py) é suficiente para o tratamento dos embeds
+   que o Docling retornar. Ajustar apenas se a verificação revelar lacuna.
+
+### Critério de aceite
+
+Comportamento do Docling com embeds documentado; instrução da LLM consistente com o que o Docling
+entrega; nenhuma perda silenciosa de conteúdo relevante.
 
 ---
 
-## 6. R5 — Tela de coleta de notícias
+## 6. R5 — Templates Docling e tratado com campo `category`
 
-Ajustes em [upload_dados.py](frontend/pages/upload_dados.py).
+### 6.1 Template do markdown cru (Docling)
 
-### 6.1 Correção semântica do texto do Docling
-- O texto **"Cada link é depois convertido em Markdown pelo Docling"**
-  ([upload_dados.py:16](frontend/pages/upload_dados.py#L16)) está semanticamente incorreto: o que é
-  convertido é o **conteúdo da página** apontada pelo link, não o link em si.
-- A **lógica já está correta** — [docling_converter_adapter.py:30-33](backend/src/adapters/processors/docling_converter_adapter.py#L30-L33)
-  converte `converter.convert(url).document.export_to_markdown()` (o conteúdo). Logo, basta **ajustar
-  o texto** (ex.: "O conteúdo de cada link é convertido em Markdown pelo Docling").
+#### Estado atual
 
-### 6.2 Checkbox Google CSE
-- Adicionar `st.checkbox` "Usar Google Custom Search Engine (CSE)". Ao marcar, exibir um
-  `st.text_input` para o usuário informar o **ID do mecanismo de pesquisa programável** (parâmetro
-  `cx`), conforme o script HTML do [PLANO_DE_ACAO.md](PLANO_DE_ACAO.md). O ID é capturado apenas após
-  a marcação do checkbox.
+Não existe documentação formal do formato esperado do markdown gerado pelo Docling. O prompt de
+tratamento ([prompts.py](backend/src/adapters/llm/prompts.py)) pressupõe um formato mas não o
+explicita.
 
-### 6.3 Aba CSV — padrão de colunas
-- Documentar na aba CSV o **padrão de colunas esperado**, incluindo **nome e tipo**, para que as
-  linhas sejam processadas pelo [csv_news_adapter.py](backend/src/adapters/data_sources/csv_news_adapter.py):
-  | Coluna | Tipo | Obrigatória | Observação |
-  |---|---|---|---|
-  | `date` | data (`YYYY-MM-DD`, `DD/MM/YYYY` ou ISO datetime) | Sim | usada para filtrar pelo período |
-  | `title` | texto | Sim | título da notícia |
-  | `content` | texto | Sim | corpo da notícia |
-  | `source` | texto | Não | default "Unknown" |
-  | `url` | texto | Sim | default vazio |
-  | `sentiment` | inteiro ∈ {-1, 0, 1} | Não | valores fora do conjunto são ignorados |
-- Informar explicitamente que **linhas fora do padrão são desconsideradas** — comportamento que já
-  ocorre (descarte silencioso no adapter, linhas 64/71/90-91/119-126). Adaptar a lógica apenas se
-  for desejável **reportar** quantas linhas foram descartadas (feedback ao usuário).
+#### Requisitos
 
-**Critério de aceite:** o texto do Docling reflete a conversão do conteúdo; existe checkbox de Google
-CSE com input de ID condicional; a aba CSV documenta colunas/tipos e o descarte de linhas fora do
-padrão.
+Documentar, em comentário ou docstring do adapter, o formato típico gerado pelo Docling para
+notícias jornalísticas:
+
+```markdown
+# Título da matéria
+
+## Subtítulo da matéria
+
+Por [Autor](link-autor) - Local
+
+DD/MM/AAAA HHhMM Atualizado DD/MM/AAAA
+
+Legenda da imagem de capa - Foto: Crédito
+
+Parágrafo do corpo da notícia...
+```
+
+Esse formato serve de referência para o prompt de tratamento e para quem mantiver o adapter.
+
+### 6.2 Campo `category` no template tratado
+
+#### Estado atual
+
+O frontmatter tratado possui `title`, `subtitle`, `url` e `date` como campos fixos em:
+- `_FRONTMATTER_KEYS` ([treated_news.py:7](backend/src/domain/models/treated_news.py#L7))
+- `TreatedNewsRecord` dataclass ([treated_news.py:57-66](backend/src/domain/models/treated_news.py#L57-L66))
+- Tabela `PIPELINE_TREATED_NEWS` ([sqlite_storage.py:367-375](backend/src/adapters/storage/sqlite_storage.py#L367-L375))
+- Template `_TEMPLATE` em [tratamento_noticias.py:41-54](frontend/pages/tratamento_noticias.py#L41-L54)
+- Prompt de tratamento ([prompts.py:12-17](backend/src/adapters/llm/prompts.py#L12-L17))
+
+`category` **não existe** em nenhum desses pontos.
+
+#### Requisitos
+
+##### Enum de categorias (novo módulo no backend)
+
+Criar `NewsCategory` em `backend/src/adapters/llm/` (ou `backend/src/domain/`):
+
+```python
+from enum import Enum
+
+class NewsCategory(str, Enum):
+    FINANCAS = "finanças"
+    MACROECONOMIA = "macroeconomia"
+    MICROECONOMIA = "microeconomia"
+    POLITICA = "política"
+    AGRONEGOCIO = "agronegócio"
+```
+
+##### Prompt de tratamento ([prompts.py](backend/src/adapters/llm/prompts.py))
+
+Acrescentar `category` ao bloco de frontmatter e instrução de classificação:
+
+```
+---
+title: Título da matéria
+subtitle: Subtítulo da matéria (use string vazia se não houver)
+url: URL original da notícia
+date: DD-MM-AAAA
+category: <uma das categorias: finanças | macroeconomia | microeconomia | política | agronegócio>
+---
+```
+
+A instrução deve especificar que a LLM **escolhe exatamente uma** categoria do rol; não inventa
+nem deixa em branco.
+
+##### Domínio ([treated_news.py](backend/src/domain/models/treated_news.py))
+
+- `_FRONTMATTER_KEYS`: adicionar `"category"`.
+- `TreatedNewsRecord`: adicionar campo `category: str = ""`.
+- `to_dict`: adicionar `"CATEGORY": self.category`.
+- `from_row`: ler `row.get("CATEGORY", "") or ""`.
+- `from_treated_markdown`: o `meta["category"]` já será populado pelo parser genérico.
+
+##### Persistência ([sqlite_storage.py](backend/src/adapters/storage/sqlite_storage.py))
+
+- `_create_treated_news_table`: adicionar coluna `CATEGORY TEXT` ao CREATE TABLE.
+- `save_treated_news`: incluir `CATEGORY` no INSERT/UPDATE.
+- `get_treated_news` / `list_treated_news`: incluir `CATEGORY` no SELECT e no dict de mapeamento.
+- Criar `_migrate_treated_news_schema` (análogo a `_migrate_proc_news_schema`) para adicionar a
+  coluna `CATEGORY TEXT` via `ALTER TABLE ... ADD COLUMN` em bases existentes (idempotente).
+- `_initialize_database`: chamar a migração após `_create_treated_news_table`.
+
+##### Frontend ([tratamento_noticias.py:41-54](frontend/pages/tratamento_noticias.py#L41-L54))
+
+Atualizar `_TEMPLATE` para incluir `category`:
+
+```markdown
+---
+title: Banco do Brasil fora do ar? Aplicativo tem instabilidade e clientes reclamam nas redes
+subtitle: Segundo o site DownDetector, que monitora interrupções em serviços online, aplicativo chegou a ter mais de 2,5 mil pela manhã. Banco normalizou os serviços por volta das 15h20.
+url: https://g1.globo.com/economia/noticia/2026/06/10/banco-do-brasil-fora-do-ar.ghtml
+date: 06-10-2026
+category: finanças
+---
+
+O aplicativo do Banco do Brasil passou por instabilidade nesta quarta-feira (10)...
+```
+
+### Critério de aceite
+
+`category` presente no template, no prompt, no frontmatter parseado, no dataclass, na tabela e
+no SELECT/INSERT; `NewsCategory` Enum define o rol; migração idempotente de bases existentes;
+a LLM classifica em uma das 5 categorias.
 
 ---
 
-## 7. R6 — Tela de executar pipeline
+## 7. R6 — Tela de tratamento: editor à direita e botões aceitar/descartar
 
-Ajustes em [executar_pipeline.py](frontend/pages/executar_pipeline.py).
+### Estado atual
 
-### 7.1 Duplicidade do checkbox de LLM
-- Hoje o checkbox de LLM aparece **na execução**
-  ([executar_pipeline.py:39-42](frontend/pages/executar_pipeline.py#L39-L42)) **e** no tratamento
-  ([tratamento_noticias.py:139](frontend/pages/tratamento_noticias.py#L139)). Como o tratamento é
-  **posterior** à execução, isso pode confundir o usuário.
-- **Proposta:** estabelecer **fonte única** da escolha de LLM. A seleção de "usar LLM / qual modelo"
-  pertence à **tela de tratamento**; na tela de executar pipeline, em vez de um checkbox que decide o
-  tratamento, exibir apenas uma **informação** de que o tratamento de notícias (manual ou via LLM) é
-  feito na tela própria, evitando erro de procedimento. (Se a execução em lote via LLM precisar ser
-  mantida, deixá-la explicitamente rotulada como "tratamento automático na execução" e desabilitada
-  por padrão.)
+#### Layout
 
-### 7.2 Textos didáticos por etapa
-- Enriquecer os textos descritivos das etapas (hoje muito sucintos, linhas 12-27), com bom
-  equilíbrio entre documentação técnica e didática, explicando o **propósito** de cada etapa
-  (Docling, Tratamento, Coleta, Engenharia de Features, Confundidores, Preparação) sem citar números
-  de seção (ver R8).
+`_render_record` ([tratamento_noticias.py:126-146](frontend/pages/tratamento_noticias.py#L126-L146))
+abre `st.columns(2)` e passa `right.container()` para `_render_editor_and_save`. No entanto,
+`code_editor` (do `streamlit-code-editor`) renderiza em largura cheia independentemente do
+container pai, quebrando o layout lado a lado e posicionando o editor abaixo do original.
 
-### 7.3 Etapas puláveis e dependências
-- Informar que **etapas podem ser puladas** desde que não interrompam a lógica da pipeline.
-- **Desabilitar** o checkbox de uma etapa enquanto a etapa-pré-requisito estiver desmarcada. Mapa de
-  dependências (de [pipeline.py:199-219](backend/src/pipeline/pipeline.py#L199-L219)):
-  | Etapa | Pulável | Pré-requisito obrigatório |
-  |---|---|---|
-  | `docling_transform` | Sim | — |
-  | `news_treatment` | Sim | `docling_transform` (consome `news_markdowns`) |
-  | `data_collection` | **Não** | — (base para features) |
-  | `feature_engineering` | **Não** | `data_collection` |
-  | `confounding_handling` | Sim | — |
-  | `modeling_preparation` | **Não** | `feature_engineering` |
-- Implementar via `disabled=` no `st.checkbox`, condicionado ao estado do checkbox pré-requisito; as
-  etapas obrigatórias permanecem marcadas. Preservar a montagem de `enabled_stages` no payload.
+#### Botões
 
-### 7.4 Feedback de UUID
-- Ao iniciar a execução, **exibir o `uuid` da execução** como feedback visual. O valor já é retornado
-  em `pipeline_id` ([pipeline_schema.py:71-77](backend/app/api/schemas/pipeline_schema.py#L71-L77));
-  basta apresentá-lo (ex.: `st.success(f"Execução iniciada — ID: {pipeline_id}")`).
+`_render_editor_and_save`
+([tratamento_noticias.py:149-164](frontend/pages/tratamento_noticias.py#L149-L164)) tem apenas
+o botão "Salvar tratado". O caminho sem links (`not links`,
+[tratamento_noticias.py:170-184](frontend/pages/tratamento_noticias.py#L170-L184)) não tem
+nenhum botão de ação.
 
-**Critério de aceite:** não há ambiguidade entre as telas quanto à LLM; os textos das etapas são
-didáticos; etapas dependentes têm checkbox desabilitado até o pré-requisito ser marcado; o `uuid` da
-execução é exibido ao iniciar.
+### Requisitos
 
----
+#### Layout (6a)
 
-## 8. R7 — Tela de tratamento de notícias
+- Usar `st.columns([1, 1])` e garantir que o `code_editor` seja instanciado **dentro** da coluna
+  direita via `with right:` em vez de `right.container()`.
+- Adicionar `st.markdown("**Arquivo original em .md**")` acima do original e
+  `st.markdown("**Editor de tratamento**")` acima do editor como legendas visíveis.
+- Quando não há links (modo template), manter o mesmo layout lado a lado já presente
+  ([tratamento_noticias.py:177-184](frontend/pages/tratamento_noticias.py#L177-L184)) — verificar
+  se `code_editor` renderiza corretamente; se não, usar `st.text_area` como fallback explícito.
 
-Ajustes em [tratamento_noticias.py](frontend/pages/tratamento_noticias.py) e backend de LLM.
+#### Botões (6b)
 
-### 8.1 Editor sempre presente com template
-- Hoje o texto diz "Você pode tratar manualmente (editor ao lado) ou usar uma LLM"
-  ([tratamento_noticias.py:23](frontend/pages/tratamento_noticias.py#L23)), mas **não há editor**
-  quando a pipeline ainda não rodou.
-- O editor deve estar **sempre presente**. Sem execução, exibir um **template** de como o arquivo
-  tratado deve se parecer (frontmatter + corpo):
-  ```markdown
-  ---
-  title: Banco do Brasil fora do ar? Aplicativo tem instabilidade e clientes reclamam nas redes
-  subtitle: Segundo o site DownDetector, que monitora interrupções em serviços online, aplicativo chegou a ter mais de 2,5 mil pela manhã. Banco normalizou os serviços por volta das 15h20.
-  url: https://g1.globo.com/economia/noticia/2026/06/10/banco-do-brasil-fora-do-ar.ghtml
-  date: 06-10-2026
-  ---
+Substituir "Salvar tratado" pelos botões:
 
-  O aplicativo do Banco do Brasil passou por instabilidade nesta quarta-feira (10)...
-  ```
-- **Layout:** arquivo original (template se a pipeline não rodou) à **esquerda** e editor à
-  **direita**, com **legendas** acima de cada campo (ex.: "Arquivo original em .md" e "Editor de
-  tratamento").
-- Usar a lib **`streamlit-code-editor`** — **já instalada** (`==0.1.21`,
-  [requirements.in](frontend/requirements.in)) e já usada em
-  [tratamento_noticias.py:126-130](frontend/pages/tratamento_noticias.py#L126-L130).
-- Adicionar botões para (1) **aplicar** as alterações e seguir para o próximo documento e para (2) **descartar** as alterações, retornando ao mesmo estado da notícia após a tranformação em markdown com o Docling
+| Botão | Ação |
+|---|---|
+| **✅ Aceitar** | Persiste o texto editado (chama `client.save_treated_news`) e avança o índice para o próximo documento (`st.session_state` de navegação). |
+| **↩️ Descartar** | Restaura o texto para o estado pós-Docling (original antes do tratamento), limpando `treated[url]`. |
 
-### 8.2 Aviso de conformidade com o template
-- Adicionar no texto de informações que **registros fora de conformidade com o template não serão
-  considerados** nas etapas seguintes da pipeline.
+Os botões devem estar **sempre presentes**:
+- Quando há links: no `_render_editor_and_save` de cada expander.
+- Quando não há links (template): abaixo do editor de template.
 
-### 8.3 Status do modelo dentro do selectbox
-- Hoje o status aparece **abaixo** do selectbox
-  ([tratamento_noticias.py:66-67](frontend/pages/tratamento_noticias.py#L66-L67)). Mover o status
-  para **dentro** do label de cada opção, obtendo o status da lógica já implementada
-  ([catalog.py:disk_status](backend/src/adapters/llm/catalog.py)):
-  > Qwen3.6-27B (⬇️ download)
-  > Qwen3-4B (✅ pronto para uso)
-  > DeepSeek R1 Distill-Qwen-7B (🔁 fazendo download)
-- O `format_func` do `st.selectbox` passa a compor `nome (emoji status)`, reutilizando
-  `_STATUS_LEGEND` ([tratamento_noticias.py:39-43](frontend/pages/tratamento_noticias.py#L39-L43)).
+O botão Descartar no modo template retorna o editor ao `_TEMPLATE` padrão.
 
-### 8.4 Enum de "melhor uso" por faixa de VRAM (backend)
-- A mensagem de melhor uso da LLM **não deve mais** ser obtida da string `best_use` no `.env`.
-- Criar um **enum no código** cujo **parâmetro de decisão é a faixa de VRAM mínima** (esta sim obtida
-  da string da variável de ambiente `LLM_MODELS`). Faixas fixas, por exemplo:
-  | Faixa de VRAM mínima | Recomendação de uso |
-  |---|---|
-  | `<= 4 GB` | Modelos leves, ideais para laptops com pouca memória gráfica |
-  | `<= 8 GB` | Equilíbrio entre custo e qualidade para tratamento de texto |
-  | `> 8 GB` | Modelos maiores para revisão, ajuste de tom e sumarização avançada |
-- Implementar como `Enum` em módulo do backend de LLM (ex.: `backend/src/adapters/llm/`), com método
-  que recebe a VRAM (parseada da string do catálogo) e devolve a recomendação. A rota
-  ([pipeline_routes.py:164](backend/app/api/routes/pipeline_routes.py#L164)) passa a derivar
-  `best_use` do enum em vez de ler `model.get("best_use")`.
+### Critério de aceite
 
-**Critério de aceite:** o editor aparece sempre (com template quando não há execução), com original à
-esquerda, editor à direita e legendas; há aviso de conformidade com o template; o status do modelo
-aparece dentro do selectbox; a recomendação de uso vem de um enum por faixa de VRAM, com a VRAM
-mínima ainda lida do `.env`.
+Editor renderiza à direita do original (colunas respeitadas); legendas visíveis acima de cada
+coluna; botões Aceitar e Descartar presentes em todos os contextos (com e sem links); Aceitar
+persiste e avança; Descartar restaura o texto original.
 
 ---
 
-## 9. R8 — Remoção de números de seção
+## 8. R7 — Remoção de números de seção
 
-Nenhuma referência a número de seção do [PLANO_DE_ACAO.md](PLANO_DE_ACAO.md) deve aparecer no
-frontend ou em docstrings/comentários de ambos os projetos. Exemplos a remover: `(Seção 2.5)`,
-`(2.4)`, `Seção 9`, `Seção 10`, etc.
+Nenhuma referência a número de seção do [PLANO_DE_ACAO.md](PLANO_DE_ACAO.md) deve aparecer
+no frontend ou em docstrings/comentários de ambos os projetos.
 
-### Arquivos com ocorrências (frontend)
-- [env_config.py](frontend/env_config.py) (linhas 1, 35, 40-42, 45),
-  [api_client.py](frontend/api_client.py) (várias rotas),
-  [executar_pipeline.py](frontend/pages/executar_pipeline.py),
-  [tratamento_noticias.py](frontend/pages/tratamento_noticias.py),
-  [visualizar_features.py](frontend/pages/visualizar_features.py),
-  [timeline_builder.py](frontend/components/timeline_builder.py),
-  [timeline_bbas3.py](frontend/pages/timeline_bbas3.py),
-  [analise_exploratoria.py](frontend/pages/analise_exploratoria.py).
+### Padrões a remover
 
-### Arquivos com ocorrências (backend)
-- [bcb_api_adapter.py](backend/src/adapters/data_sources/bcb_api_adapter.py),
-  [bcb_dtos.py](backend/src/adapters/data_sources/bcb_dtos.py),
-  [config.py](backend/app/core/config.py),
-  [pipeline_routes.py](backend/app/api/routes/pipeline_routes.py),
-  [pipeline_stage.py](backend/src/pipeline/pipeline_stage.py),
-  [pipeline_schema.py](backend/app/api/schemas/pipeline_schema.py),
-  [sqlite_storage.py](backend/src/adapters/storage/sqlite_storage.py),
-  [prompts.py](backend/src/adapters/llm/prompts.py),
-  [news_treatment_stage.py](backend/src/pipeline/stages/news_treatment_stage.py),
-  [treated_news.py](backend/src/domain/models/treated_news.py),
-  [local_llm_adapter.py](backend/src/adapters/llm/local_llm_adapter.py),
-  [api_llm_adapter.py](backend/src/adapters/llm/api_llm_adapter.py),
-  [catalog.py](backend/src/adapters/llm/catalog.py),
-  [confounding_handler_service.py](backend/src/domain/services/confounding_handler_service.py),
-  [feature_engineering_service.py](backend/src/domain/services/feature_engineering_service.py),
-  [modeling_preparation_service.py](backend/src/domain/services/modeling_preparation_service.py).
+- Referências numéricas explícitas: `(Seção 2.5)`, `(2.4)`, `§2.3`, `Seção 10`, etc.
+- Marcadores de regra de Object Calisthenics nas docstrings: `(Rule 1)`, `(Rule 2)`, `(Rule 7)`,
+  quando usados apenas como referência interna de numeração — **sem contexto explicativo**. Quando
+  o texto da docstring descreve o propósito adequadamente sem a numeração, remove-se o marcador;
+  quando a numeração é o único conteúdo, substituir por descrição textual do propósito.
 
-O conteúdo explicativo das docstrings deve ser **preservado** — remove-se apenas a referência
-numérica à seção do plano (substituindo, quando útil, por descrição textual do propósito).
+### Arquivos com ocorrências conhecidas (frontend)
 
-**Critério de aceite:** uma busca por `Seção`/`(2.` /`§` no frontend e nas docstrings do backend não
-retorna referências a números de seção do plano; as docstrings continuam descrevendo o propósito.
+[frontend/pages/timeline_bbas3.py](frontend/pages/timeline_bbas3.py),
+[frontend/pages/inicio.py](frontend/pages/inicio.py).
+
+### Arquivos com ocorrências conhecidas (backend)
+
+Docstrings com `(Rule N)` em:
+[csv_news_adapter.py](backend/src/adapters/data_sources/csv_news_adapter.py),
+[catalog.py](backend/src/adapters/llm/catalog.py),
+[modeling_preparation_service.py](backend/src/domain/services/modeling_preparation_service.py),
+[sqlite_storage.py](backend/src/adapters/storage/sqlite_storage.py),
+[treated_news.py](backend/src/domain/models/treated_news.py),
+[news_treatment_stage.py](backend/src/pipeline/stages/news_treatment_stage.py) e demais arquivos
+identificados pela busca `grep -r "Rule [0-9]" backend/`.
+
+O conteúdo explicativo das docstrings deve ser **preservado** — remove-se apenas o marcador
+numérico.
+
+### Critério de aceite
+
+Busca por `Seção`, `(2.`, `§`, `Rule [0-9]` no frontend e nas docstrings do backend não retorna
+referências a numerações do plano; as docstrings continuam descrevendo o propósito das funções.
 
 ---
 
-## 10. R9 — Atualização de testes
+## 9. R8 — Atualização de testes
 
 Atualizar os testes existentes conforme as mudanças. Testes que dependem de LLM permanecem
 **mockados** (sem rede/download).
 
-### Impacto
-- **Chunking (R4):** novos casos para `DateRange.split` (período < 1 ano → 1 janela; >= 1 ano →
-  janelas consecutivas, inclusivas, sem sobreposição cobrindo todo o intervalo) e para o
-  `BcbApiAdapter` (itera subintervalos e concatena/deduplica). Verificar se
-  [test_pipeline_orchestration.py:40-72](backend/tests/test_pipeline_orchestration.py#L40-L72)
-  (validação de datas) precisa de ajuste.
-- **Enum de VRAM (R7.4):** [test_llm.py](backend/tests/test_llm.py) (linha ~33) deixa de assertar
-  `best_use` como string livre e passa a verificar a recomendação **derivada do enum** por faixa de
-  VRAM.
-- **CSV (R5.3):** se a lógica passar a **reportar** linhas descartadas, adicionar teste de descarte
-  (linhas fora do padrão são ignoradas e contadas); caso contrário, validar a documentação sem
-  alterar comportamento.
-- **UI (R2/R3/R6/R7):** mudanças de Streamlit são majoritariamente visuais; cobrir por testes apenas
-  helpers puros extraídos (ex.: regra de "forçar data e avisar", composição do label do selectbox).
+### Novos casos necessários
 
-**Critério de aceite:** suíte verde offline, sem chamadas reais de LLM nem rede; novos casos cobrindo
-chunking, enum de VRAM e (se aplicável) descarte de CSV.
+| Área | Casos |
+|---|---|
+| `TreatedNewsRecord` | Parse de frontmatter com `category`; `to_dict`/`from_row` round-trip incluindo `category`; frontmatter sem `category` → campo vazio (não quebra). |
+| `CsvNewsAdapter` | Linha sem `url` → descartada; linha com `url` vazia → descartada; linha com `url` válida → incluída. |
+| `NewsCategory` | Valores do Enum batem com o rol documentado (finanças, macroeconomia, microeconomia, política, agronegócio). |
+| Modeling | `apply_walk_forward_split` retorna folds onde os parâmetros de normalização do teste diferem dos ajustados no treino (sem leakage); os valores normalizados do teste ficam dentro do intervalo derivado do treino. |
 
----
+### Casos existentes que podem precisar de atualização
 
-## 11. R10 — Documentação (README e CHANGELOG)
+- Testes de `TreatedNewsRecord` que assertam `to_dict` sem `CATEGORY` → atualizar para incluir
+  a chave.
+- Testes de `SQLiteStorage` que criam `PIPELINE_TREATED_NEWS` → verificar se a migração
+  idempotente não quebra testes com banco em memória.
 
-- Atualizar [README.md](README.md): chunking de período nas requisições BCB (e nota sobre yfinance),
-  esquema de cores configurável, restrições de datas, checkbox de Google CSE, padrão de CSV,
-  melhorias da tela de execução (UUID, etapas dependentes), editor com template e enum de VRAM.
-- Atualizar [CHANGELOG.md](CHANGELOG.md) com uma nova entrada resumindo os tópicos desta iteração
-  (pode ser assistido pelo skill `changelog-generator`).
+### Critério de aceite
 
-**Critério de aceite:** README e CHANGELOG refletem as mudanças desta iteração em tópicos resumidos.
+Suíte verde offline sem chamadas reais de LLM nem rede; casos novos cobrem `category`, descarte
+de CSV sem `url` e normalização por fold sem leakage.
 
 ---
 
-## 12. Variáveis de ambiente
+## 10. R9 — Documentação (README e CHANGELOG)
+
+- Atualizar [README.md](README.md) com tópicos resumidos de:
+  - Correção de cores no light mode (toggle, date input, botões).
+  - Render do embed Google CSE na tela de upload.
+  - Campo `url` obrigatório no CSV.
+  - Preservação de embeds sociais via instrução da LLM.
+  - Campo `category` no template tratado e rol de categorias.
+  - Layout lado a lado e botões Aceitar/Descartar na tela de tratamento.
+  - Correção de data leakage na normalização por fold.
+- Atualizar [CHANGELOG.md](CHANGELOG.md) com uma nova entrada (Iteração 3) resumindo os tópicos
+  acima (pode ser assistido pelo skill `changelog-generator`).
+
+### Critério de aceite
+
+README e CHANGELOG refletem as mudanças desta iteração em tópicos resumidos e acessíveis.
+
+---
+
+## 11. Variáveis de ambiente
 
 Esta iteração **não introduz novas variáveis obrigatórias**. Confirma o uso de:
 
 | Variável | Exemplo | Função |
 |---|---|---|
-| `DATE_START` / `DATE_END` | `2025-01-01` / `2025-12-31` | Default de período (R4) |
-| `LLM_MODELS` | JSON com `name`, `path`, `vram`, ... | Catálogo; `vram` alimenta o enum (R7.4) |
+| `DATE_START` / `DATE_END` | `2025-01-01` / `2025-12-31` | Default de período |
+| `LLM_MODELS` | JSON com `name`, `path`, `vram`, ... | Catálogo de modelos locais |
 | `LLM_BACKEND` | `local` \| `api` | Escolha do adapter de LLM |
 
-A chave `best_use` do JSON `LLM_MODELS` torna-se **opcional/ignorada** (a recomendação passa a vir do
-enum por faixa de VRAM). O ID do Google CSE é informado pela UI, não por env var.
-
-**Critério de aceite:** o código lê valores via [config.py](backend/app/core/config.py)/
-[env_config.py](frontend/env_config.py); a recomendação de uso da LLM não depende mais de `best_use`
-no `.env`.
+- O ID do Google CSE é informado pela UI, não por env var.
+- O rol de categorias é definido pelo `NewsCategory` Enum no código, não por env var.
+- A chave `best_use` do JSON `LLM_MODELS`, se presente, permanece ignorada (recomendação deriva
+  do enum de VRAM, implementado na Iteração 2).
 
 ---
 
-## 13. Critérios de aceite globais
+## 12. Critérios de aceite globais
 
-Checklist rastreável com o prompt original:
+Checklist rastreável com o [PROMPT_TO_SPEC.md](PROMPT_TO_SPEC.md):
 
-- [ ] **R1** — Avaliação de refatoração e diretrizes de ML registradas; mudanças incrementais.
-- [ ] **R2** — Esquema de cores configurável (5 papéis); light mode corrigido; dark mode intacto.
-- [ ] **R3** — Restrições de data: inicial do sidebar >= inicial da aba Ações (forçar + avisar); data
-      final limitada a hoje no sidebar e na aba Ações (forçar + warning).
-- [ ] **R4** — Chunking de período >= 1 ano no BCB; verificação do yfinance documentada/aplicada;
-      default 2025-01-01..2025-12-31 mantido.
-- [ ] **R5** — Texto do Docling corrigido (conteúdo, não link); checkbox de Google CSE com input de
-      ID; aba CSV documenta colunas/tipos e descarte de linhas fora do padrão.
-- [ ] **R6** — Sem ambiguidade de LLM entre telas; textos de etapa didáticos; checkbox de etapa
-      dependente desabilitado até o pré-requisito; `uuid` exibido ao iniciar.
-- [ ] **R7** — Editor sempre presente com template; original × editor com legendas; aviso de
-      conformidade; status dentro do selectbox; enum por faixa de VRAM (VRAM mínima do `.env`).
-- [ ] **R8** — Sem números de seção do plano no frontend e nas docstrings de ambos os projetos.
-- [ ] **R9** — Testes atualizados (chunking, enum de VRAM, CSV); suíte verde offline e LLM mockada.
-- [ ] **R10** — README e CHANGELOG atualizados com tópicos resumidos.
+- [ ] **R1** — Normalização por fold dentro de `apply_walk_forward_split`; parâmetros de treino
+      aplicados ao teste; `prepare_unsupervised_data` inalterado.
+- [ ] **R2** — Light mode: toggle, date_input e botões com fundo claro e texto legível; dark
+      mode intacto.
+- [ ] **R3** — Embed do CSE renderiza via `st.components.v1.html` ao informar `cx`; `url`
+      obrigatório na doc CSV e no adapter (descarte de linhas sem `url`).
+- [ ] **R4** — Comportamento do Docling com embeds sociais verificado e documentado; instrução
+      da LLM consistente.
+- [ ] **R5** — `category` presente no template, prompt, dataclass, tabela e SELECT/INSERT;
+      `NewsCategory` Enum com 5 categorias; migração idempotente; LLM classifica.
+- [ ] **R6** — Editor à direita com legendas; botões Aceitar e Descartar presentes em todos os
+      contextos; Aceitar persiste; Descartar restaura.
+- [ ] **R7** — Sem referências a números de seção do plano no frontend e nas docstrings; conteúdo
+      explicativo preservado.
+- [ ] **R8** — Suíte verde offline; casos novos cobrem `category`, `url` obrigatório no CSV e
+      normalização por fold.
+- [ ] **R9** — README e CHANGELOG atualizados com tópicos resumidos da Iteração 3.

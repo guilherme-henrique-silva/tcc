@@ -15,7 +15,7 @@ class PipelineErrorCode(Enum):
 
 
 class PipelineException(Exception):
-    """Base exception for pipeline errors (Rule 2: No ELSE - use early returns)."""
+    """Base exception for pipeline errors."""
     
     def __init__(
         self,

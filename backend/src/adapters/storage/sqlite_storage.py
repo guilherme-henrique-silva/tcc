@@ -11,7 +11,7 @@ from src.domain.models import ProcNewsRecord, PipelineProcRecord, TreatedNewsRec
 
 
 class SQLiteStorage(StoragePort):
-    """Adapter for persisting features to SQLite database (Rule 7: small entity)."""
+    """Adapter for persisting features to SQLite database."""
     
     def __init__(self, database_url: str):
         """Initialize with database connection URL."""
@@ -198,13 +198,14 @@ class SQLiteStorage(StoragePort):
             cursor.execute(
                 """
                 INSERT INTO PIPELINE_TREATED_NEWS
-                    (URL, PROC_ID, TITLE, SUBTITLE, NEWS_DATE, CONTENT)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (URL, PROC_ID, TITLE, SUBTITLE, NEWS_DATE, CATEGORY, CONTENT)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(URL) DO UPDATE SET
                     PROC_ID = excluded.PROC_ID,
                     TITLE = excluded.TITLE,
                     SUBTITLE = excluded.SUBTITLE,
                     NEWS_DATE = excluded.NEWS_DATE,
+                    CATEGORY = excluded.CATEGORY,
                     CONTENT = excluded.CONTENT
                 """,
                 (
@@ -213,6 +214,7 @@ class SQLiteStorage(StoragePort):
                     record.title,
                     record.subtitle,
                     record.date,
+                    record.category,
                     record.content,
                 ),
             )
@@ -230,7 +232,7 @@ class SQLiteStorage(StoragePort):
             cursor = conn.cursor()
 
             cursor.execute(
-                "SELECT URL, PROC_ID, TITLE, SUBTITLE, NEWS_DATE, CONTENT "
+                "SELECT URL, PROC_ID, TITLE, SUBTITLE, NEWS_DATE, CATEGORY, CONTENT "
                 "FROM PIPELINE_TREATED_NEWS WHERE URL = ?",
                 (url,),
             )
@@ -252,7 +254,7 @@ class SQLiteStorage(StoragePort):
             cursor = conn.cursor()
 
             cursor.execute(
-                "SELECT URL, PROC_ID, TITLE, SUBTITLE, NEWS_DATE, CONTENT "
+                "SELECT URL, PROC_ID, TITLE, SUBTITLE, NEWS_DATE, CATEGORY, CONTENT "
                 "FROM PIPELINE_TREATED_NEWS WHERE PROC_ID = ?",
                 (proc_id,),
             )
@@ -265,18 +267,19 @@ class SQLiteStorage(StoragePort):
             return []
 
     def _treated_row_to_dict(self, row) -> Dict[str, object]:
-        """Map a PIPELINE_TREATED_NEWS row tuple into a column dict (Rule 1)."""
+        """Map a PIPELINE_TREATED_NEWS row tuple into a column dict."""
         return {
             "URL": row[0],
             "PROC_ID": row[1],
             "TITLE": row[2],
             "SUBTITLE": row[3],
             "NEWS_DATE": row[4],
-            "CONTENT": row[5],
+            "CATEGORY": row[5],
+            "CONTENT": row[6],
         }
 
     def _initialize_database(self) -> None:
-        """Initialize database tables (Rule 1)."""
+        """Initialize database tables."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -294,7 +297,7 @@ class SQLiteStorage(StoragePort):
             pass
     
     def _create_validation_table(self, cursor) -> None:
-        """Create validation_results table (Rule 1)."""
+        """Create validation_results table."""
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS validation_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -304,7 +307,7 @@ class SQLiteStorage(StoragePort):
         """)
     
     def _create_granger_table(self, cursor) -> None:
-        """Create granger_results table (Rule 1)."""
+        """Create granger_results table."""
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS granger_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -370,9 +373,20 @@ class SQLiteStorage(StoragePort):
                 TITLE     TEXT,
                 SUBTITLE  TEXT,
                 NEWS_DATE TEXT,
+                CATEGORY  TEXT,
                 CONTENT   TEXT NOT NULL
             )
         """)
+        self._migrate_treated_news_schema(cursor)
+
+    def _migrate_treated_news_schema(self, cursor) -> None:
+        """Add CATEGORY column to pre-existing PIPELINE_TREATED_NEWS tables (idempotente)."""
+        columns = {row[1] for row in cursor.execute(
+            "PRAGMA table_info(PIPELINE_TREATED_NEWS)"
+        ).fetchall()}
+
+        if "CATEGORY" not in columns:
+            cursor.execute("ALTER TABLE PIPELINE_TREATED_NEWS ADD COLUMN CATEGORY TEXT")
 
     def check_connection(self) -> Optional[str]:
         """Test DB connectivity for health checks: None on success, reason on failure."""
@@ -386,12 +400,12 @@ class SQLiteStorage(StoragePort):
             return str(e)
 
     def _get_connection(self):
-        """Get SQLite connection (Rule 1)."""
+        """Get SQLite connection."""
         db_path = self._parse_database_path()
         return sqlite3.connect(db_path)
     
     def _parse_database_path(self) -> str:
-        """Parse database URL to file path (Rule 1)."""
+        """Parse database URL to file path."""
         # sqlite:////path/to/db.sqlite -> /path/to/db.sqlite
         if self.database_url.startswith("sqlite:///"):
             return self.database_url[10:]

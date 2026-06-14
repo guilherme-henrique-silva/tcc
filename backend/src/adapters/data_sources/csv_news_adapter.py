@@ -10,7 +10,7 @@ from src.ports.data_source import DataSourcePort
 
 
 class CsvNewsAdapter(DataSourcePort):
-    """Adapter for loading news from CSV files (Rule 7: small entity)."""
+    """Adapter for loading news from CSV files."""
     
     def __init__(self, csv_path: str = None):
         """Initialize with optional CSV file path."""
@@ -44,7 +44,7 @@ class CsvNewsAdapter(DataSourcePort):
         df: pd.DataFrame,
         date_range: DateRange,
     ) -> List[News]:
-        """Convert CSV rows to News objects (Rule 1)."""
+        """Convert CSV rows to News objects."""
         news_items = []
         
         for idx, row in df.iterrows():
@@ -56,7 +56,7 @@ class CsvNewsAdapter(DataSourcePort):
         return news_items
     
     def _create_news_from_row(self, row, date_range: DateRange) -> News:
-        """Create News from CSV row (Rule 1)."""
+        """Create News from CSV row."""
         try:
             created_at = self._parse_date(row.get("date", ""))
             
@@ -66,9 +66,9 @@ class CsvNewsAdapter(DataSourcePort):
             title = str(row.get("title", ""))
             content = str(row.get("content", ""))
             source = str(row.get("source", "Unknown"))
-            url = str(row.get("url", ""))
-            
-            if not title or not content:
+            url = str(row.get("url", "")).strip()
+
+            if not title or not content or not url:
                 return None
             
             sentiment_value = row.get("sentiment", 0)
@@ -78,20 +78,20 @@ class CsvNewsAdapter(DataSourcePort):
                 title=title,
                 content=content,
                 source=source,
-                created_at=created_at,
+                published_date=created_at,
                 url=url,
             )
-            
+
             if sentiment_score:
-                news = news.set_sentiment(sentiment_score)
-            
+                news.set_sentiment(sentiment_score)
+
             return news
         
         except (ValueError, KeyError, TypeError):
             return None
     
     def _parse_date(self, date_str) -> datetime:
-        """Parse date string to datetime (Rule 1)."""
+        """Parse date string to datetime."""
         if isinstance(date_str, datetime):
             return date_str
         
@@ -108,11 +108,11 @@ class CsvNewsAdapter(DataSourcePort):
         return datetime.now()
     
     def _is_within_date_range(self, date: datetime, date_range: DateRange) -> bool:
-        """Check if date is within range (Rule 1)."""
+        """Check if date is within range."""
         return date_range.contains(date.date())
     
     def _parse_sentiment(self, value) -> SentimentScore:
-        """Parse sentiment value to SentimentScore (Rule 1)."""
+        """Parse sentiment value to SentimentScore."""
         try:
             sentiment_int = int(value)
             

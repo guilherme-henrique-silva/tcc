@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 
 def _to_date(value) -> Optional[date]:
-    """Coerce a value into a date (Rule 1)."""
+    """Coerce a value into a date."""
     if isinstance(value, date) and not isinstance(value, datetime):
         return value
 
@@ -30,7 +30,7 @@ def is_negative_event(news_row: Dict) -> bool:
 
 
 def _build_event(news_row: Dict) -> Optional[Dict]:
-    """Build a single KnightLab event from a news row (Rule 1)."""
+    """Build a single KnightLab event from a news row."""
     event_date = _to_date(news_row.get("date"))
 
     if event_date is None:

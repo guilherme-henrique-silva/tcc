@@ -32,7 +32,7 @@ class LocalLlmAdapter(LlmPort):
         self._generator = None  # pipeline de text-generation (lazy)
 
     def treat_news(self, markdown: str, *, prompt: str) -> str:
-        """Ensure the model is on disk, then run local inference (Rule 1: delegate)."""
+        """Ensure the model is on disk, then run local inference."""
         self._ensure_downloaded()
         generator = self._ensure_generator()
 
@@ -49,7 +49,7 @@ class LocalLlmAdapter(LlmPort):
         download(repo_id=self._repo_id(), local_dir=str(local_dir))
 
     def _ensure_generator(self):
-        """Build (once) the text-generation pipeline, CPU/GPU-aware (Rule 1)."""
+        """Build (once) the text-generation pipeline, CPU/GPU-aware."""
         if self._generator is not None:
             return self._generator
 
@@ -59,12 +59,12 @@ class LocalLlmAdapter(LlmPort):
         return self._generator
 
     def _generate(self, generator: Callable, text: str) -> str:
-        """Run the generator and return only the produced text (Rule 1)."""
+        """Run the generator and return only the produced text."""
         outputs = generator(text)
         return self._extract_text(outputs)
 
     def _extract_text(self, outputs) -> str:
-        """Normalize the transformers pipeline output into a string (Rule 1)."""
+        """Normalize the transformers pipeline output into a string."""
         if isinstance(outputs, list) and outputs:
             first = outputs[0]
             if isinstance(first, dict):
@@ -74,7 +74,7 @@ class LocalLlmAdapter(LlmPort):
         return str(outputs).strip()
 
     def _repo_id(self) -> str:
-        """Use the explicit repo id, else derive it from the model path (Rule 1)."""
+        """Use the explicit repo id, else derive it from the model path."""
         if self._repo_id_value:
             return self._repo_id_value
 
@@ -87,13 +87,13 @@ class LocalLlmAdapter(LlmPort):
         return 0 if torch.cuda.is_available() else -1
 
     def _default_snapshot_download(self) -> Callable:
-        """Lazily resolve huggingface_hub.snapshot_download (Rule 1)."""
+        """Lazily resolve huggingface_hub.snapshot_download."""
         from huggingface_hub import snapshot_download
 
         return snapshot_download
 
     def _default_pipeline_builder(self) -> Callable:
-        """Lazily build a transformers text-generation pipeline factory (Rule 1)."""
+        """Lazily build a transformers text-generation pipeline factory."""
         from transformers import pipeline
 
         def build(model_dir: str, device: int):

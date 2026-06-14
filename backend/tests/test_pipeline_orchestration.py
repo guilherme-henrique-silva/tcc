@@ -9,7 +9,7 @@ from backend.app.core.config import Config
 
 
 class TestDataPipeline:
-    """Test DataPipeline orchestrator (Rule 7: test class)."""
+    """Test DataPipeline orchestrator."""
     
     def setup_method(self):
         """Setup test fixtures."""

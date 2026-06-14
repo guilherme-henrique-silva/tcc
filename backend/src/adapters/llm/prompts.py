@@ -15,12 +15,15 @@ title: Título da matéria
 subtitle: Subtítulo da matéria (use string vazia se não houver)
 url: URL original da notícia
 date: DD-MM-AAAA
+category: <uma das categorias: finanças | macroeconomia | microeconomia | política | agronegócio>
 ---
 
 Conteúdo principal aqui.
 
 Regras:
 - Não invente fatos; extraia título, subtítulo e data do próprio conteúdo.
+- O campo `category` deve ser exatamente uma das opções listadas (finanças, macroeconomia,
+  microeconomia, política ou agronegócio); não invente nem deixe em branco.
 - As datas das notícias no texto original seguem o padrão brasileiro (DD/MM/AAAA ou DD-MM-AAAA)
 - Embed post de comentários de usuários em redes sociais devem ser mantidos parcialmente.
 Mantenha apenas o texto principal destes comentários, incluindo eventuais hashtags (#),

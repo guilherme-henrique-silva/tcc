@@ -20,7 +20,29 @@ PORTAL_NAMES = {
 
 
 class DoclingConverterAdapter:
-    """Wrapper sobre docling.DocumentConverter (texto e tabelas; ignora mídia)."""
+    """Wrapper sobre docling.DocumentConverter (texto e tabelas; ignora mídia).
+
+    Formato típico gerado pelo Docling para notícias jornalísticas:
+
+        # Título da matéria
+
+        ## Subtítulo da matéria
+
+        Por [Autor](link-autor) - Local
+
+        DD/MM/AAAA HHhMM Atualizado DD/MM/AAAA
+
+        Legenda da imagem de capa - Foto: Crédito
+
+        Parágrafo do corpo da notícia...
+
+    Embeds de redes sociais (ex.: posts do x.com incorporados em portais como G1):
+    O Docling preserva o texto de embeds quando estes são renderizados como HTML simples
+    no DOM da página; posts encapsulados em iframes externos (widgets do Twitter/X,
+    Instagram) são descartados, pois o conversor não executa JavaScript.
+    O prompt de tratamento instrui a LLM a formatar o texto preservado em blockquotes
+    separados, ignorando usernames e metadados do bloco.
+    """
 
     def __init__(self, converter=None):
         """Recebe um DocumentConverter já configurado ou cria o padrão (lazy)."""
@@ -33,7 +55,7 @@ class DoclingConverterAdapter:
         return result.document.export_to_markdown()
 
     def site_name(self, url: str) -> str:
-        """Deriva o nome do portal a partir do domínio do link (Rule 1)."""
+        """Deriva o nome do portal a partir do domínio do link."""
         host = (urlparse(url).hostname or "").lower()
 
         if host.startswith("www."):
@@ -50,7 +72,7 @@ class DoclingConverterAdapter:
         return self._converter
 
     def _build_default_converter(self):
-        """Build a DocumentConverter that keeps only text and tables (Rule 1)."""
+        """Build a DocumentConverter that keeps only text and tables."""
         from docling.document_converter import DocumentConverter
 
         pipeline_options = self._build_pipeline_options()
@@ -61,7 +83,7 @@ class DoclingConverterAdapter:
         return self._converter_with_options(DocumentConverter, pipeline_options)
 
     def _build_pipeline_options(self):
-        """Disable OCR and image extraction when the API exposes it (Rule 1)."""
+        """Disable OCR and image extraction when the API exposes it."""
         try:
             from docling.datamodel.pipeline_options import PdfPipelineOptions
 

@@ -13,7 +13,7 @@ from src.domain.services.modeling_preparation_service import ModelingPreparation
 
 
 class ModelingPreparationStage(PipelineStage):
-    """Stage for preparing data for modeling (Rule 7: small entity)."""
+    """Stage for preparing data for modeling."""
 
     def __init__(self, classification_mode: bool = False):
         """Initialize modeling preparation service."""
@@ -30,7 +30,7 @@ class ModelingPreparationStage(PipelineStage):
         input_data: Dict[str, Any],
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineStageResult:
-        """Prepare data for modeling (Rule 1: delegate)."""
+        """Prepare data for modeling."""
         start_time = datetime.now()
 
         try:
@@ -63,11 +63,11 @@ class ModelingPreparationStage(PipelineStage):
             )
     
     def validate(self) -> bool:
-        """Validate service availability (Rule 2)."""
+        """Validate service availability."""
         return self.service is not None
     
     def _prepare_unsupervised(self, input_data: Dict[str, Any]):
-        """Prepare unsupervised learning dataset (Rule 1)."""
+        """Prepare unsupervised learning dataset."""
         try:
             # TODO: Extract stock and news features from input_data
             # service.prepare_unsupervised_data(stock_features, news_features)
@@ -77,7 +77,7 @@ class ModelingPreparationStage(PipelineStage):
             return None
     
     def _prepare_supervised(self, input_data: Dict[str, Any]):
-        """Prepare supervised learning dataset (Rule 1)."""
+        """Prepare supervised learning dataset."""
         try:
             # TODO: Extract all features and target from input_data
             # service.prepare_supervised_data(...)
@@ -87,7 +87,7 @@ class ModelingPreparationStage(PipelineStage):
             return None
     
     def _prepare_walk_forward_splits(self, supervised_dataset):
-        """Prepare walk-forward validation splits (Rule 1)."""
+        """Prepare walk-forward validation splits."""
         if not supervised_dataset:
             return []
         
@@ -104,7 +104,7 @@ class ModelingPreparationStage(PipelineStage):
         supervised_dataset,
         walk_forward_splits: list,
     ) -> Dict[str, Any]:
-        """Create output data (Rule 1)."""
+        """Create output data."""
         return {
             "unsupervised_dataset": unsupervised_dataset,
             "supervised_dataset": supervised_dataset,

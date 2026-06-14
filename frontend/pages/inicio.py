@@ -50,8 +50,8 @@ with st.expander("Ver arquitetura do projeto"):
         1. **Transformação Docling** — links → Markdown
         2. **Tratamento de notícias** — limpeza + frontmatter (manual/LLM)
         3. **Coleta** — preços (yfinance) + consolidação de notícias
-        4. **Engenharia de features** — ações, notícias, concorrentes (2.4)
-        5. **Confundidores** — Selic, USD/BRL, commodities + Granger (2.5)
-        6. **Preparação** — datasets para modelagem (2.6)
+        4. **Engenharia de features** — ações, notícias, concorrentes
+        5. **Confundidores** — Selic, USD/BRL, commodities + Granger
+        6. **Preparação** — datasets para modelagem
         """
     )

@@ -33,8 +33,7 @@ class CheckpointManager:
     """
     Manages pipeline checkpoints for recovery.
     
-    Implements Rule 7: Keep All Entities Small (max 50 lines per method).
-    """
+        """
     
     def __init__(self, checkpoint_dir: str = None):
         """Initialize checkpoint manager."""
@@ -153,7 +152,7 @@ class CheckpointManager:
         )
     
     def _summarize_data(self, data: Dict) -> Dict:
-        """Summarize data for metadata (Rule 5: One Dot per Line)."""
+        """Summarize data for metadata."""
         summary = {}
         
         for key, value in data.items():

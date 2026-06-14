@@ -45,6 +45,7 @@ subtitle: Segundo o site DownDetector, que monitora interrupções em serviços 
 aplicativo chegou a ter mais de 2,5 mil pela manhã. Banco normalizou os serviços por volta das 15h20.
 url: https://g1.globo.com/economia/noticia/2026/06/10/banco-do-brasil-fora-do-ar.ghtml
 date: 06-10-2026
+category: finanças
 ---
 
 O aplicativo do Banco do Brasil passou por instabilidade nesta quarta-feira (10). \
@@ -132,36 +133,44 @@ def _render_record(url: str, use_llm: bool, model_path: str) -> None:
                 st.rerun()
 
         original = originals.get(url, "")
-        left, right = st.columns(2)
+        left, right = st.columns([1, 1])
 
-        left.markdown("**Arquivo original em .md**")
-        left.code(original or _TEMPLATE, language="markdown")
+        with left:
+            st.markdown("**Arquivo original em .md**")
+            st.code(original or _TEMPLATE, language="markdown")
 
-        right.markdown("**Editor de tratamento**")
-        if use_llm and original:
-            if right.button("🤖 Tratar com LLM", key=f"llm_{url}"):
-                _treat_with_llm(url, model_path)
-                st.rerun()
+        with right:
+            st.markdown("**Editor de tratamento**")
+            if use_llm and original:
+                if st.button("🤖 Tratar com LLM", key=f"llm_{url}"):
+                    _treat_with_llm(url, model_path)
+                    st.rerun()
 
-        _render_editor_and_save(url, right.container(), original)
+            _render_editor_and_save(url, original)
 
 
-def _render_editor_and_save(url: str, container, original: str) -> None:
+def _render_editor_and_save(url: str, original: str) -> None:
     current = treated.get(url, original or _TEMPLATE)
 
-    with container:
-        if code_editor is not None:
-            response = code_editor(current, lang="markdown", key=f"ed_{url}")
-            edited = response.get("text") or current
-        else:
-            edited = st.text_area(
-                "Markdown tratado", value=current, height=300, key=f"ta_{url}"
-            )
+    if code_editor is not None:
+        response = code_editor(current, lang="markdown", key=f"ed_{url}")
+        edited = response.get("text") or current
+    else:
+        edited = st.text_area(
+            "Markdown tratado", value=current, height=300, key=f"ta_{url}"
+        )
 
-        if st.button("💾 Salvar tratado", key=f"save_{url}"):
+    col_aceitar, col_descartar = st.columns(2)
+    with col_aceitar:
+        if st.button("✅ Aceitar", key=f"accept_{url}"):
             treated[url] = edited
             client.save_treated_news(url, edited, st.session_state.get("last_proc_id"))
             st.success("Documento tratado salvo.")
+    with col_descartar:
+        if st.button("↩️ Descartar", key=f"discard_{url}"):
+            treated.pop(url, None)
+            st.info("Texto restaurado para o original pós-Docling.")
+            st.rerun()
 
 
 # --------------------------------------------------------------------------- #
@@ -174,14 +183,25 @@ if not links:
     )
     st.markdown("---")
     st.markdown("#### Exemplo de arquivo tratado (template)")
-    left_col, right_col = st.columns(2)
-    left_col.markdown("**Arquivo original em .md**")
-    left_col.code(_TEMPLATE, language="markdown")
-    right_col.markdown("**Editor de tratamento**")
-    if code_editor is not None:
-        code_editor(_TEMPLATE, lang="markdown", key="ed_template")
-    else:
-        st.text_area("Markdown tratado", value=_TEMPLATE, height=300, key="ta_template")
+    left_col, right_col = st.columns([1, 1])
+    with left_col:
+        st.markdown("**Arquivo original em .md**")
+        st.code(_TEMPLATE, language="markdown")
+    with right_col:
+        st.markdown("**Editor de tratamento**")
+        if code_editor is not None:
+            tpl_response = code_editor(_TEMPLATE, lang="markdown", key="ed_template")
+            tpl_edited = tpl_response.get("text") or _TEMPLATE
+        else:
+            tpl_edited = st.text_area(
+                "Markdown tratado", value=_TEMPLATE, height=300, key="ta_template"
+            )
+        tpl_col_aceitar, tpl_col_descartar = st.columns(2)
+        with tpl_col_aceitar:
+            st.button("✅ Aceitar", key="accept_template", disabled=True)
+        with tpl_col_descartar:
+            if st.button("↩️ Descartar", key="discard_template"):
+                st.rerun()
 
 else:
     # Configuração de tratamento

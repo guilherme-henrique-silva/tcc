@@ -3,6 +3,54 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Não lançado] — Iteração 3 (R1–R9)
+
+Correção de data leakage, ajustes visuais no light mode, render do Google CSE, campo
+`category` em notícias tratadas, botões Aceitar/Descartar na tela de tratamento,
+remoção de marcadores de seção e atualização de testes.
+
+### Corrigido
+- **Data leakage na modelagem** (R1): a normalização do dataset supervisionado foi
+  movida de `_extract_supervised_features` para dentro de `_create_walk_forward_split`.
+  Os parâmetros min/max agora são ajustados exclusivamente sobre os dados de treino de
+  cada fold e aplicados ao teste correspondente — eliminando a contaminação temporal.
+  `prepare_unsupervised_data` permanece inalterado (sem walk-forward, sem leakage).
+- **Light mode incompleto** (R2): `_LIGHT_CSS` em `frontend/components/theme.py`
+  foi ampliado com regras para o toggle de dark mode, `st.date_input` (input e
+  calendário popup) e `st.button` — fundo claro e texto legível em todos os contextos.
+
+### Adicionado
+- **Render do embed Google CSE** (R3): ao informar um `cx` válido na aba de links,
+  o embed HTML do Google Custom Search Engine é renderizado via
+  `streamlit.components.v1.html` com `height=600`.
+- **`url` obrigatório no CSV** (R3): documentação da aba CSV atualizada (`✅ Sim`);
+  `CsvNewsAdapter._create_news_from_row` descarta linhas com `url` vazio ou ausente.
+- **Campo `category`** (R5): enum `NewsCategory` com 5 categorias
+  (finanças, macroeconomia, microeconomia, política, agronegócio) criado em
+  `backend/src/adapters/llm/news_category.py`. Campo propagado ao frontmatter do prompt
+  de tratamento, ao `TreatedNewsRecord` (dataclass + `to_dict`/`from_row`), à tabela
+  `PIPELINE_TREATED_NEWS` (coluna `CATEGORY TEXT`) e ao template da tela de tratamento.
+  Migração idempotente (`ALTER TABLE … ADD COLUMN`) para bases existentes.
+- **Botões Aceitar / Descartar** (R6): substituem "Salvar tratado"; Aceitar persiste e
+  avança, Descartar restaura o texto pré-edição. Presentes em ambos os modos (com e
+  sem links). Layout lado a lado garantido com `with right:`.
+- **Documentação de embeds Docling** (R4): docstring em `DoclingConverterAdapter`
+  descreve o comportamento do Docling com embeds de redes sociais (texto preservado em
+  HTML simples; iframes descartados) e a instrução da LLM para blockquotes.
+- **Testes de Iteração 3** (R8): `test_iteracao3.py` cobre `NewsCategory` (5 valores,
+  lookup por string), `CsvNewsAdapter` (linhas sem `url` descartadas), e
+  `ModelingPreparationService` (normalização por fold sem leakage).
+- **Testes de frontmatter com `category`** (R8): casos adicionados em
+  `test_frontmatter.py` — parse com/sem `category`, round-trip `to_dict`/`from_row`,
+  linha legada sem `CATEGORY` não quebra.
+
+### Removido
+- **Marcadores de seção** (R7): referências a `(Rule N)`, `(2.4)`, `(2.5)`, `(2.6)` e
+  similares removidas de docstrings do backend (175 ocorrências em 26 arquivos) e do
+  frontend — o conteúdo explicativo das docstrings foi preservado.
+
+---
+
 ## [Não lançado] — Iteração 2 (R2–R10)
 
 Ciclo de polimento de UX, segurança de dados e qualidade de código. Nenhum requisito

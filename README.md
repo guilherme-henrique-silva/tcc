@@ -10,6 +10,24 @@ A implementação segue **Arquitetura Hexagonal** (ports & adapters) e
 **Object Calisthenics**, com backend em **FastAPI** e frontend em **Streamlit**.
 Consulte o [CHANGELOG.md](CHANGELOG.md) para o histórico de iterações.
 
+### Novidades da Iteração 3
+
+- **Correção de data leakage** — normalização min-max por fold dentro do walk-forward;
+  parâmetros ajustados exclusivamente no treino, aplicados ao teste.
+- **Light mode completo** — toggle, `date_input` e botões agora exibem fundo claro e
+  texto legível; dark mode intacto.
+- **Embed Google CSE** — ao informar um `cx`, o mecanismo de busca do Google é
+  renderizado diretamente na tela de upload.
+- **`url` obrigatório no CSV** — documentação e adapter atualizados; linhas sem URL
+  são descartadas silenciosamente.
+- **Campo `category`** — `NewsCategory` enum com 5 categorias; a LLM classifica cada
+  notícia; campo presente no frontmatter, no banco e nos templates.
+- **Tela de tratamento** — editor renderiza à direita do original; botões
+  **✅ Aceitar** (persiste + avança) e **↩️ Descartar** (restaura original) em todos
+  os contextos.
+- **Limpeza de docstrings** — referências a `(Rule N)` e números de seção removidas
+  (175 ocorrências em 26 arquivos de backend + frontend).
+
 ---
 
 ## 1. Arquitetura
@@ -268,8 +286,11 @@ docker compose build   # reconstrói com o lock novo
 ## 7. Fluxo de uso
 
 1. Cole os links das notícias na página **Upload de Dados** (de-duplicação automática).
+   - Opcionalmente configure um **Google CSE** (`cx`) para buscar links diretamente na
+     interface — o embed é renderizado no browser ao informar o ID.
 2. Em **Tratamento de Notícias**, limpe o conteúdo de cada link — manualmente ou via LLM —
-   e valide o resultado lado a lado (original × tratado).
+   e valide o resultado lado a lado (original × tratado). Use **✅ Aceitar** para salvar
+   e avançar ou **↩️ Descartar** para restaurar o texto pré-edição.
 3. Em **Executar Pipeline**, selecione as etapas por checkbox e inicie a execução.
 4. Acompanhe o progresso aninhado (`stqdm`) e retente etapas que falharem.
 5. Visualize as features e a **timeline** das notícias com impacto negativo em BBAS3.

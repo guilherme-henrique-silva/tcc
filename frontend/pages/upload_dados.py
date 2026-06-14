@@ -4,6 +4,7 @@ from datetime import date
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from streamlit_tags import st_tags
 
 from api_client import APIClient
@@ -76,6 +77,13 @@ with tab_links:
         )
         if cse_id:
             st.caption(f"CSE configurado: `{cse_id}`")
+            components.html(
+                f"""
+                <script async src="https://cse.google.com/cse.js?cx={cse_id}"></script>
+                <div class="gcse-search"></div>
+                """,
+                height=600,
+            )
         else:
             st.warning("Informe o ID do mecanismo de pesquisa para habilitar a busca via CSE.")
 
@@ -100,7 +108,7 @@ with tab_csv:
         | `title` | texto | ✅ Sim | Título da notícia |
         | `content` | texto | ✅ Sim | Corpo da notícia |
         | `source` | texto | ❌ Não | Padrão: `"Unknown"` |
-        | `url` | texto | ❌ Não | Padrão: vazio |
+        | `url` | texto | ✅ Sim | Chave primária do registro; linhas sem `url` são descartadas |
         | `sentiment` | inteiro ∈ {-1, 0, 1} | ❌ Não | -1 negativo / 0 neutro / 1 positivo |
 
         ⚠️ **Linhas fora deste padrão (colunas obrigatórias ausentes, datas inválidas ou

@@ -13,7 +13,7 @@ from app.core.config import Config
 
 
 class DependencyContainer:
-    """Manages dependency injection for all adapters and services (Rule 7: small entity)."""
+    """Manages dependency injection for all adapters and services."""
     
     def __init__(self, config: Config = None):
         """Initialize container with optional configuration."""
@@ -96,7 +96,7 @@ class DependencyContainer:
         return self._llm_adapter
 
     def _resolve_repo_id(self, model_path: Optional[str]) -> Optional[str]:
-        """Look up the HuggingFace repo id for the selected model in LLM_MODELS (Rule 1)."""
+        """Look up the HuggingFace repo id for the selected model in LLM_MODELS."""
         if not model_path:
             return None
 
@@ -109,17 +109,17 @@ class DependencyContainer:
         return repo_id_for(entry)
 
     def _create_data_source_adapter(self) -> DataSourcePort:
-        """Create data source adapter instance (Rule 1)."""
+        """Create data source adapter instance."""
         # Default: YFinanceAdapter for production
         return YFinanceAdapter()
     
     def _create_storage_adapter(self) -> StoragePort:
-        """Create storage adapter instance (Rule 1)."""
+        """Create storage adapter instance."""
         database_url = self.config.DATABASE_URL
         return SQLiteStorage(database_url)
     
     def reset_singletons(self) -> None:
-        """Reset all singleton instances (Rule 1)."""
+        """Reset all singleton instances."""
         self._data_source_adapter = None
         self._storage_adapter = None
         self._docling_converter = None

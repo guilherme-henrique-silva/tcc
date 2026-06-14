@@ -14,7 +14,7 @@ class PipelineProcRecord:
     proc_ts_end: Optional[datetime] = None  # fim da execução (None enquanto roda)
 
     def to_dict(self) -> Dict[str, object]:
-        """Serializa o registro no formato das colunas da tabela (Rule 1)."""
+        """Serializa o registro no formato das colunas da tabela."""
         return {
             "PROC_ID": self.proc_id,
             "PROC_TS_START": self.proc_ts_start.isoformat(),
@@ -23,7 +23,7 @@ class PipelineProcRecord:
 
     @classmethod
     def from_row(cls, row: Dict[str, object]) -> "PipelineProcRecord":
-        """Reconstrói o registro a partir de uma linha da tabela (Rule 1)."""
+        """Reconstrói o registro a partir de uma linha da tabela."""
         return cls(
             proc_id=str(row["PROC_ID"]),
             proc_ts_start=cls._parse_timestamp(row["PROC_TS_START"]),
@@ -32,7 +32,7 @@ class PipelineProcRecord:
 
     @staticmethod
     def _parse_timestamp(value: object) -> datetime:
-        """Parse do timestamp armazenado (Rule 1)."""
+        """Parse do timestamp armazenado."""
         if isinstance(value, datetime):
             return value
 

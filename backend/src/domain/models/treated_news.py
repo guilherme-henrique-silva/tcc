@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
 _FENCE = "---"
-_FRONTMATTER_KEYS = ("title", "subtitle", "url", "date")
+_FRONTMATTER_KEYS = ("title", "subtitle", "url", "date", "category")
 
 
 def parse_frontmatter(markdown: str) -> Tuple[Dict[str, str], str]:
@@ -34,7 +34,7 @@ def parse_frontmatter(markdown: str) -> Tuple[Dict[str, str], str]:
 
 
 def _find_closing_fence(lines) -> Optional[int]:
-    """Index of the closing `---` fence, or None when absent (Rule 1)."""
+    """Index of the closing `---` fence, or None when absent."""
     for index in range(1, len(lines)):
         if lines[index].strip() == _FENCE:
             return index
@@ -43,7 +43,7 @@ def _find_closing_fence(lines) -> Optional[int]:
 
 
 def _absorb_frontmatter_line(line: str, meta: Dict[str, str]) -> None:
-    """Parse one `key: value` frontmatter line into the metadata dict (Rule 1)."""
+    """Parse one `key: value` frontmatter line into the metadata dict."""
     if ":" not in line:
         return
 
@@ -56,13 +56,14 @@ def _absorb_frontmatter_line(line: str, meta: Dict[str, str]) -> None:
 
 @dataclass(frozen=True)
 class TreatedNewsRecord:
-    """Notícia tratada: frontmatter (title/subtitle/url/date) + conteúdo."""
+    """Notícia tratada: frontmatter (title/subtitle/url/date/category) + conteúdo."""
 
     url: str                       # link da notícia (PK)
     title: str
     subtitle: str
     date: str                      # data da matéria (DD-MM-AAAA), como texto
     content: str                   # markdown tratado completo (frontmatter + corpo)
+    category: str = ""             # uma das categorias de NewsCategory
     proc_id: Optional[str] = None  # uuid da execução associada
 
     @classmethod
@@ -72,37 +73,40 @@ class TreatedNewsRecord:
         treated_markdown: str,
         proc_id: Optional[str] = None,
     ) -> "TreatedNewsRecord":
-        """Build a record by parsing the frontmatter of the treated markdown (Rule 1)."""
+        """Build a record by parsing the frontmatter of the treated markdown."""
         meta, _ = parse_frontmatter(treated_markdown)
         return cls(
             url=url,
             title=meta["title"],
             subtitle=meta["subtitle"],
             date=meta["date"],
+            category=meta.get("category", ""),
             content=treated_markdown,
             proc_id=proc_id,
         )
 
     def to_dict(self) -> Dict[str, object]:
-        """Serializa no formato das colunas da tabela (Rule 1)."""
+        """Serializa no formato das colunas da tabela."""
         return {
             "URL": self.url,
             "PROC_ID": self.proc_id,
             "TITLE": self.title,
             "SUBTITLE": self.subtitle,
             "NEWS_DATE": self.date,
+            "CATEGORY": self.category,
             "CONTENT": self.content,
         }
 
     @classmethod
     def from_row(cls, row: Dict[str, object]) -> "TreatedNewsRecord":
-        """Reconstrói o registro a partir de uma linha da tabela (Rule 1)."""
+        """Reconstrói o registro a partir de uma linha da tabela."""
         proc_id = row.get("PROC_ID")
         return cls(
             url=str(row["URL"]),
             title=str(row["TITLE"]) if row["TITLE"] is not None else "",
             subtitle=str(row["SUBTITLE"]) if row["SUBTITLE"] is not None else "",
             date=str(row["NEWS_DATE"]) if row["NEWS_DATE"] is not None else "",
+            category=str(row.get("CATEGORY") or ""),
             content=str(row["CONTENT"]) if row["CONTENT"] is not None else "",
             proc_id=str(proc_id) if proc_id is not None else None,
         )

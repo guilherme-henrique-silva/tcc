@@ -6,7 +6,7 @@ from src.ports.data_source import NewsProcessorPort
 
 
 class EntityExtractorAdapter(NewsProcessorPort):
-    """Adapter for named entity recognition using spaCy (Rule 7: small entity)."""
+    """Adapter for named entity recognition using spaCy."""
     
     def __init__(self):
         """Initialize entity extractor."""
@@ -38,7 +38,7 @@ class EntityExtractorAdapter(NewsProcessorPort):
         pass
     
     def _load_spacy_model(self):
-        """Load spaCy Portuguese model (Rule 1)."""
+        """Load spaCy Portuguese model."""
         try:
             import spacy
             
@@ -49,7 +49,7 @@ class EntityExtractorAdapter(NewsProcessorPort):
             return None
     
     def _get_target_entities(self) -> Set[str]:
-        """Get list of target entity types (Rule 1)."""
+        """Get list of target entity types."""
         return {
             "ORG",  # Organizations (banks, government)
             "MISC",  # Miscellaneous (commodities)
@@ -57,7 +57,7 @@ class EntityExtractorAdapter(NewsProcessorPort):
         }
     
     def _extract_spacy_entities(self, text: str) -> Set[str]:
-        """Extract entities using spaCy NER (Rule 1)."""
+        """Extract entities using spaCy NER."""
         if not self.nlp:
             return set()
         
@@ -71,7 +71,7 @@ class EntityExtractorAdapter(NewsProcessorPort):
         return entities
     
     def _extract_keyword_entities(self, text: str) -> Set[str]:
-        """Extract entities using keyword matching as fallback (Rule 1)."""
+        """Extract entities using keyword matching as fallback."""
         entities = set()
         text_lower = text.lower()
         

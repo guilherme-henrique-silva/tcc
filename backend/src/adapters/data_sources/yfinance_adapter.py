@@ -10,7 +10,7 @@ from src.ports.data_source import DataSourcePort
 
 
 class YFinanceAdapter(DataSourcePort):
-    """Adapter for fetching stock data from yfinance (Rule 7: small entity)."""
+    """Adapter for fetching stock data from yfinance."""
     
     def __init__(self):
         """Initialize adapter."""
@@ -50,7 +50,7 @@ class YFinanceAdapter(DataSourcePort):
         return []
     
     def _fetch_history(self, ticker_obj, start_date, end_date) -> pd.DataFrame:
-        """Fetch historical data from yfinance (Rule 1)."""
+        """Fetch historical data from yfinance."""
         return ticker_obj.history(start=start_date, end=end_date)
     
     def _convert_to_stock_prices(
@@ -58,7 +58,7 @@ class YFinanceAdapter(DataSourcePort):
         df: pd.DataFrame,
         ticker: TickerSymbol,
     ) -> List[StockPrice]:
-        """Convert DataFrame to StockPrice objects (Rule 1)."""
+        """Convert DataFrame to StockPrice objects."""
         stock_prices = []
         
         for date, row in df.iterrows():
@@ -70,7 +70,7 @@ class YFinanceAdapter(DataSourcePort):
         return stock_prices
     
     def _create_stock_price_from_row(self, row, ticker: TickerSymbol, date) -> StockPrice:
-        """Create StockPrice from DataFrame row (Rule 1)."""
+        """Create StockPrice from DataFrame row."""
         try:
             return StockPrice(
                 ticker=ticker,

@@ -155,5 +155,33 @@ class TestVramTier:
         assert len(texts) == len(set(texts))
 
 
+class TestNewsCategory:
+    """NewsCategory enum: valores, tipo e lookup por string."""
+
+    def test_all_five_values_present(self):
+        from backend.src.adapters.llm.news_category import NewsCategory
+
+        values = {c.value for c in NewsCategory}
+        assert values == {
+            "finanças",
+            "macroeconomia",
+            "microeconomia",
+            "política",
+            "agronegócio",
+            "tecnologia"
+        }
+
+    def test_is_str_enum(self):
+        from backend.src.adapters.llm.news_category import NewsCategory
+
+        assert isinstance(NewsCategory.FINANCAS, str)
+        assert NewsCategory.FINANCAS == "finanças"
+
+    def test_str_lookup(self):
+        from backend.src.adapters.llm.news_category import NewsCategory
+
+        assert NewsCategory("macroeconomia") is NewsCategory.MACROECONOMIA
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

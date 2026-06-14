@@ -14,7 +14,7 @@ from src.domain.value_objects import DateRange
 
 
 class ConfoundingHandlerStage(PipelineStage):
-    """Stage for handling confounding variables and Granger testing (Rule 7: small entity)."""
+    """Stage for handling confounding variables and Granger testing."""
 
     def __init__(self):
         """Initialize confounding handler service."""
@@ -30,7 +30,7 @@ class ConfoundingHandlerStage(PipelineStage):
         input_data: Dict[str, Any],
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineStageResult:
-        """Handle confounding variables and test causality (Rule 1)."""
+        """Handle confounding variables and test causality."""
         start_time = datetime.now()
 
         try:
@@ -67,11 +67,11 @@ class ConfoundingHandlerStage(PipelineStage):
             )
     
     def validate(self) -> bool:
-        """Validate service availability (Rule 2)."""
+        """Validate service availability."""
         return self.service is not None
     
     def _extract_date_range(self, input_data: Dict) -> DateRange:
-        """Extract date range from input (Rule 1)."""
+        """Extract date range from input."""
         try:
             date_range_data = input_data.get("date_range", {})
             
@@ -87,7 +87,7 @@ class ConfoundingHandlerStage(PipelineStage):
             return None
     
     def _apply_granger_tests(self, input_data: Dict[str, Any]) -> Dict[str, any]:
-        """Apply Granger causality tests (Rule 1)."""
+        """Apply Granger causality tests."""
         # TODO: Extract sentiment and prices from input_data
         # For now, return empty results
         return {
@@ -100,7 +100,7 @@ class ConfoundingHandlerStage(PipelineStage):
         control_variables,
         granger_results: Dict,
     ) -> Dict[str, Any]:
-        """Create output data for next stage (Rule 1)."""
+        """Create output data for next stage."""
         control_vars_dict = control_variables.to_dict() if hasattr(control_variables, 'to_dict') else {}
         
         return {

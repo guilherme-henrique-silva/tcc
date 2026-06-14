@@ -14,7 +14,7 @@ from src.ports.data_source import DataSourcePort
 
 
 class DataCollectionStage(PipelineStage):
-    """Stage for collecting stock prices and news data (Rule 7: small entity)."""
+    """Stage for collecting stock prices and news data."""
 
     def __init__(
         self,
@@ -35,7 +35,7 @@ class DataCollectionStage(PipelineStage):
         input_data: Dict[str, Any],
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineStageResult:
-        """Collect stock and news data (Rule 1: delegate)."""
+        """Collect stock and news data."""
         start_time = datetime.now()
 
         try:
@@ -70,7 +70,7 @@ class DataCollectionStage(PipelineStage):
             )
     
     def validate(self) -> bool:
-        """Validate data source availability (Rule 2: no else)."""
+        """Validate data source availability."""
         if not self.data_source:
             return False
         
@@ -80,7 +80,7 @@ class DataCollectionStage(PipelineStage):
         return True
     
     def _extract_date_range(self, input_data: Dict) -> Optional[DateRange]:
-        """Extract date range from input (Rule 1)."""
+        """Extract date range from input."""
         try:
             date_range_data = input_data.get("date_range", {})
             
@@ -96,7 +96,7 @@ class DataCollectionStage(PipelineStage):
             return None
     
     def _collect_stock_prices(self, date_range: DateRange) -> Dict[str, list]:
-        """Collect stock prices for all tickers (Rule 1)."""
+        """Collect stock prices for all tickers."""
         prices_by_ticker = {}
         
         for ticker_str in self.tickers:
@@ -111,7 +111,7 @@ class DataCollectionStage(PipelineStage):
         input_data: Dict[str, Any],
         date_range: DateRange,
     ) -> list:
-        """Consolidate news from Docling markdowns or CSV file (Rule 1)."""
+        """Consolidate news from Docling markdowns or CSV file."""
         markdowns = input_data.get("news_markdowns")
 
         if markdowns:
@@ -120,7 +120,7 @@ class DataCollectionStage(PipelineStage):
         return []
 
     def _consolidate_markdown_news(self, markdowns: list) -> list:
-        """Normalize Docling markdown outputs into news records (Rule 1)."""
+        """Normalize Docling markdown outputs into news records."""
         news_items = []
 
         for entry in markdowns:
@@ -142,7 +142,7 @@ class DataCollectionStage(PipelineStage):
         stock_prices: Dict[str, list],
         news_items: list,
     ) -> Dict[str, Any]:
-        """Create output data for next stage (Rule 1)."""
+        """Create output data for next stage."""
         return {
             "stock_prices": stock_prices,
             "news_items": news_items,

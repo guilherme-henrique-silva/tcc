@@ -16,13 +16,13 @@ context_block(
     negativas antecedem ou acompanham quedas de BBAS3. Os eventos exibidos cruzam
     **sentimento negativo** (`SentimentScore == -1`) com **queda no dia**
     (`Variacao_Pct_BBAS3 < 0`). A análise formal de defasagem (lags **T+0/T+1/T+2**) e
-    causalidade fica nas etapas de features (2.4) e no teste de Granger (2.5).
+    causalidade fica nas etapas de features e no teste de Granger.
     """,
 )
 
 start_date, _end_date = get_date_range()
 
-# Notícias negativas calculadas pela pipeline (etapa Docling + features 2.4).
+# Notícias negativas calculadas pela pipeline (etapas Docling + Engenharia de features).
 # Disponibilizadas via sessão; cai num exemplo mínimo quando ausentes.
 news_rows = st.session_state.get("negative_news", [])
 
