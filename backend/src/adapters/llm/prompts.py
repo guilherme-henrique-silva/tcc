@@ -1,7 +1,7 @@
 """Prompts de LLM — constantes de instrução para os adapters."""
 
 _PROMPT_TRATAMENTO_NOTICIAS = """\
-Você é um editor que limpa e normaliza o Markdown de uma notícia.
+Você é um editor que limpa e normaliza o Markdown de uma notícia extraída de um site.
 
 Tarefas:
 1. Remova todo conteúdo irrelevante da página original: cabeçalhos de navegação,
@@ -21,4 +21,11 @@ Conteúdo principal aqui.
 
 Regras:
 - Não invente fatos; extraia título, subtítulo e data do próprio conteúdo.
-- Responda APENAS com o Markdown tratado (frontmatter + corpo), sem comentários."""
+- No corpo da notícia pode conter comentários de usuários em redes sociais.
+Mantenha apenas o texto principal destes comentários, incluindo eventuais hashtags (#),
+ignorando usernames e demais elementos do bloco de comentário incorporado à notícia
+e formate eles em blockquotes.
+Importante: NÃO adicione todos os comentários em um único blockquote;
+cada comentário deve ter o seu próprio separado dos demais.
+- Responda APENAS com o Markdown tratado (frontmatter + corpo),
+sem adicionar comentários próprios."""
