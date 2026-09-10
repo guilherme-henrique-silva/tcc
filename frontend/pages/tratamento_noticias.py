@@ -37,14 +37,32 @@ st.session_state.setdefault("treated_md", {})
 originals = st.session_state["orig_md"]
 treated = st.session_state["treated_md"]
 
-# Template exibido quando nenhuma execução foi feita ainda
-_TEMPLATE = """\
+# Exemplo de saída BRUTA do Docling (sem frontmatter — coluna esquerda "original")
+_TEMPLATE_ORIGINAL = """\
+# Banco do Brasil fora do ar? Aplicativo tem instabilidade e clientes reclamam nas redes
+
+## Segundo o site DownDetector, que monitora interrupções em serviços online, aplicativo chegou a ter mais de 2,5 mil pela manhã. Banco normalizou os serviços por volta das 15h20.
+
+Por [Redação g1](https://g1.globo.com/autores/redacao-g1/) - São Paulo
+
+10/06/2026 11h44 Atualizado 10/06/2026
+
+Agência do Banco do Brasil de Caruaru, no Agreste de Pernambuco - Foto: Reprodução/Google Street View
+
+O aplicativo do Banco do Brasil passou por instabilidade nesta quarta-feira (10). Nas redes \
+sociais, clientes relataram problemas em acessar a conta e fazer transferências.
+
+...\
+"""
+
+# Exemplo de notícia JÁ TRATADA (com frontmatter — valor inicial do editor à direita)
+_TEMPLATE_TRATADO = """\
 ---
 title: Banco do Brasil fora do ar? Aplicativo tem instabilidade e clientes reclamam nas redes
 subtitle: Segundo o site DownDetector, que monitora interrupções em serviços online, \
 aplicativo chegou a ter mais de 2,5 mil pela manhã. Banco normalizou os serviços por volta das 15h20.
 url: https://g1.globo.com/economia/noticia/2026/06/10/banco-do-brasil-fora-do-ar.ghtml
-date: 06-10-2026
+date: 10-06-2026
 category: finanças
 ---
 
@@ -137,7 +155,7 @@ def _render_record(url: str, use_llm: bool, model_path: str) -> None:
 
         with left:
             st.markdown("**Arquivo original em .md**")
-            st.code(original or _TEMPLATE, language="markdown")
+            st.code(original or _TEMPLATE_ORIGINAL, language="markdown")
 
         with right:
             st.markdown("**Editor de tratamento**")
@@ -150,7 +168,7 @@ def _render_record(url: str, use_llm: bool, model_path: str) -> None:
 
 
 def _render_editor_and_save(url: str, original: str) -> None:
-    current = treated.get(url, original or _TEMPLATE)
+    current = treated.get(url, original or _TEMPLATE_TRATADO)
 
     if code_editor is not None:
         response = code_editor(current, lang="markdown", key=f"ed_{url}")
@@ -174,6 +192,14 @@ def _render_editor_and_save(url: str, original: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Configuração de tratamento (sempre visível)                                  #
+# --------------------------------------------------------------------------- #
+use_llm = st.checkbox("🤖 Usar LLM para tratamento das notícias no padrão esperado pela pipeline")
+model_path = _select_model() if use_llm else ""
+
+st.markdown("---")
+
+# --------------------------------------------------------------------------- #
 # Se não há links — exibir template mesmo assim                                #
 # --------------------------------------------------------------------------- #
 if not links:
@@ -186,15 +212,15 @@ if not links:
     left_col, right_col = st.columns([1, 1])
     with left_col:
         st.markdown("**Arquivo original em .md**")
-        st.code(_TEMPLATE, language="markdown")
+        st.code(_TEMPLATE_ORIGINAL, language="markdown")
     with right_col:
         st.markdown("**Editor de tratamento**")
         if code_editor is not None:
-            tpl_response = code_editor(_TEMPLATE, lang="markdown", key="ed_template")
-            tpl_edited = tpl_response.get("text") or _TEMPLATE
+            tpl_response = code_editor(_TEMPLATE_TRATADO, lang="markdown", key="ed_template")
+            tpl_edited = tpl_response.get("text") or _TEMPLATE_TRATADO
         else:
             tpl_edited = st.text_area(
-                "Markdown tratado", value=_TEMPLATE, height=300, key="ta_template"
+                "Markdown tratado", value=_TEMPLATE_TRATADO, height=300, key="ta_template"
             )
         tpl_col_aceitar, tpl_col_descartar = st.columns(2)
         with tpl_col_aceitar:
@@ -204,11 +230,6 @@ if not links:
                 st.rerun()
 
 else:
-    # Configuração de tratamento
-    use_llm = st.checkbox("🤖 Usar LLM para tratamento")
-    model_path = _select_model() if use_llm else ""
-
-    st.markdown("---")
     st.caption(f"🔗 {len(links)} link(s) na sessão. Trate na granularidade por notícia.")
     for link in links:
         _render_record(link, use_llm, model_path)

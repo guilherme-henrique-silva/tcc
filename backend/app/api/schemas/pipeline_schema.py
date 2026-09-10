@@ -45,6 +45,10 @@ class PipelineExecuteRequest(BaseModel):
         None,
         description="Selected local model path for LLM treatment (LLM_BACKEND=local)."
     )
+    discarded_news_urls: Optional[List[str]] = Field(
+        None,
+        description="URLs to exclude from treatment (user chose to discard and advance)."
+    )
 
     class Config:
         schema_extra = {
@@ -64,17 +68,18 @@ class PipelineExecuteRequest(BaseModel):
 class StageResultDTO(BaseModel):
     """DTO for a single stage outcome."""
     stage_name: str
-    status: Literal["SUCCESS", "FAILED", "SKIPPED"]
+    status: Literal["SUCCESS", "FAILED", "SKIPPED", "BLOCKED"]
     error_message: Optional[str] = None
 
 
 class PipelineRunResponse(BaseModel):
-    """DTO for a synchronous pipeline run result (pipeline run result)."""
+    """DTO for a synchronous pipeline run result."""
     pipeline_id: str
-    status: Literal["SUCCESS", "FAILED"]
+    status: Literal["SUCCESS", "FAILED", "BLOCKED"]
     stages_executed: List[str]
     stage_results: Dict[str, StageResultDTO]
     error_message: Optional[str] = None
+    pending_treatment_urls: Optional[List[str]] = None
 
 
 class ProcNewsDTO(BaseModel):

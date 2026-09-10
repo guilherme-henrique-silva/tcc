@@ -55,3 +55,10 @@ with st.expander("Ver arquitetura do projeto"):
         6. **Preparação** — datasets para modelagem
         """
     )
+
+st.markdown("---")
+
+st.caption(
+    "Desenvolvido por Guilherme Henrique da Silva - TCC Univesp 2026 | " +
+    "🔗 Repositório no [GitHub](https://github.com/guilherme-henrique-silva/tcc-univesp-2026)"
+)

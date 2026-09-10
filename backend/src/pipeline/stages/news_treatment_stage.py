@@ -23,6 +23,11 @@ class NewsTreatmentStage(PipelineStage):
     interativo (manual/LLM, validação lado a lado) acontece na página de Tratamento;
     aqui a etapa consome os documentos tratados persistidos e, quando o modo LLM está
     ativo, trata automaticamente os registros ainda pendentes.
+
+    Breakpoint de conformidade: se após o tratamento restar alguma entrada com
+    `treated=False`, a etapa retorna status "BLOCKED" com a lista de URLs pendentes.
+    A pipeline pára e o usuário pode tratar os pendentes ou descartá-los antes de
+    reexecutar.
     """
 
     def __init__(self, storage, llm_provider: LlmProvider):
@@ -33,7 +38,7 @@ class NewsTreatmentStage(PipelineStage):
 
     def substages(self) -> List[str]:
         """Subetapas em ordem."""
-        return ["selecionar_registros", "tratar_llm", "persistir_tratados"]
+        return ["selecionar_registros", "tratar_llm", "verificar_conformidade"]
 
     def validate(self) -> bool:
         """Validate storage availability."""
@@ -60,18 +65,28 @@ class NewsTreatmentStage(PipelineStage):
                 for entry in entries
             ]
 
-            self._report_substage(on_substage, "persistir_tratados")
-            output_data = self._create_output_data(treated)
+            self._report_substage(on_substage, "verificar_conformidade")
+            pending_urls = [
+                e["url"] for e in treated if not e.get("treated") and e.get("url")
+            ]
 
+            if pending_urls:
+                return self._create_blocked_result(start_time, pending_urls)
+
+            output_data = self._create_output_data(treated)
             return self._create_success_result(start_time, datetime.now(), output_data)
 
         except Exception as e:
             return self._create_failure_result(start_time, datetime.now(), str(e))
 
     def _select_entries(self, input_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Keep only successfully converted markdowns from Docling."""
+        """Keep only successfully converted markdowns, excluding discarded URLs."""
         markdowns = input_data.get("news_markdowns") or []
-        return [entry for entry in markdowns if entry.get("success")]
+        discarded = set(input_data.get("discarded_news_urls") or [])
+        return [
+            entry for entry in markdowns
+            if entry.get("success") and entry.get("url") not in discarded
+        ]
 
     def _treat_entry(
         self,
@@ -162,3 +177,18 @@ class NewsTreatmentStage(PipelineStage):
             "news_markdowns": treated,
             "treatment_timestamp": datetime.now().isoformat(),
         }
+
+    def _create_blocked_result(
+        self,
+        start_time: datetime,
+        pending_urls: List[str],
+    ) -> PipelineStageResult:
+        """Create a BLOCKED result carrying the list of URLs awaiting treatment."""
+        return PipelineStageResult(
+            stage_name=self.stage_name,
+            status="BLOCKED",
+            start_time=start_time,
+            end_time=datetime.now(),
+            data={"pending_treatment_urls": pending_urls},
+            error_message=None,
+        )

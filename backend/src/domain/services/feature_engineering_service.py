@@ -77,10 +77,16 @@ class FeatureEngineeringService:
         if not filtered_news:
             return pd.DataFrame()
         
+        sentiment_by_date = self._group_sentiment_by_date(filtered_news)
+        frequency_by_date = self._group_news_by_date(filtered_news)
+
+        dates = sorted(sentiment_by_date.keys())
         news_df = pd.DataFrame()
-        news_df["date"] = [item.created_at.date() for item in filtered_news]
-        news_df["sentiment_score"] = self._aggregate_sentiment(filtered_news)
-        news_df["news_frequency"] = self._count_news_frequency(filtered_news)
+        news_df["date"] = [datetime.strptime(d, "%Y-%m-%d").date() for d in dates]
+        news_df["sentiment_score"] = [
+            self._calculate_daily_sentiment_average(sentiment_by_date[d]) for d in dates
+        ]
+        news_df["news_frequency"] = [frequency_by_date.get(d, 0) for d in dates]
         
         return news_df
     
@@ -156,7 +162,7 @@ class FeatureEngineeringService:
         
         return [
             item for item in news_items
-            if date_range.contains(item.created_at.date())
+            if date_range.contains(item.published_date.date())
         ]
     
     def _aggregate_sentiment(self, news_items: List[News]) -> List[float]:
@@ -178,7 +184,7 @@ class FeatureEngineeringService:
         grouped = {}
         
         for item in news_items:
-            date_key = str(item.created_at.date())
+            date_key = str(item.published_date.date())
             
             if date_key not in grouped:
                 grouped[date_key] = []
@@ -205,7 +211,7 @@ class FeatureEngineeringService:
         grouped = {}
         
         for item in news_items:
-            date_key = str(item.created_at.date())
+            date_key = str(item.published_date.date())
             grouped[date_key] = grouped.get(date_key, 0) + 1
         
         return grouped

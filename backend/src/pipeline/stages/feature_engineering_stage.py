@@ -103,16 +103,35 @@ class FeatureEngineeringStage(PipelineStage):
         news_items: list,
         input_data: Dict[str, Any],
     ) -> Dict[str, any]:
-        """Calculate news features."""
+        """Calculate news features from News entities within the pipeline date range."""
         if not news_items:
             return {}
-        
+
         try:
+            from src.domain.value_objects import DateRange
+            from datetime import date as date_type
+
             date_range_data = input_data.get("date_range", {})
-            
-            # TODO: Create DateRange from input and calculate features
-            return {}
-        
+            raw_start = date_range_data.get("start_date")
+            raw_end = date_range_data.get("end_date")
+
+            if not raw_start or not raw_end:
+                return {}
+
+            def _to_date(v):
+                if isinstance(v, date_type):
+                    return v
+                from datetime import datetime as dt
+                return dt.strptime(str(v), "%Y-%m-%d").date()
+
+            date_range = DateRange(
+                start_date=_to_date(raw_start),
+                end_date=_to_date(raw_end),
+            )
+
+            features_df = self.service.calculate_news_features(news_items, date_range)
+            return features_df.to_dict() if not features_df.empty else {}
+
         except Exception:
             return {}
     

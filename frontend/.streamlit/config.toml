@@ -14,3 +14,4 @@ showErrorDetails = true
 headless = true
 maxUploadSize = 200
 enableXsrfProtection = true
+runOnSave = true

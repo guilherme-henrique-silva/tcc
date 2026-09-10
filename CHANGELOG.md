@@ -3,6 +3,58 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Não lançado] — Iteração 4 (R1–R9)
+
+Fechamento das lacunas de integração ponta a ponta: templates Docling corretos, auto-tratamento
+via LLM reconectado, breakpoint de conformidade, sentimento ponta a ponta, remoção de marcadores
+numéricos de plano, documentação técnica para TCC, atualização de testes e README/CHANGELOG.
+
+### Corrigido
+- **Templates Docling na tela de tratamento** (R1): `_TEMPLATE` único (já tratado) foi dividido em
+  `_TEMPLATE_ORIGINAL` (saída bruta do Docling: `# Título`, `## Subtítulo`, linha de autor, data e
+  corpo) para a coluna esquerda e `_TEMPLATE_TRATADO` (frontmatter + corpo limpo) para o editor à
+  direita. Data corrigida de `06-10-2026` (MM-DD) para `10-06-2026` (DD-MM-AAAA).
+- **Sentimento na engenharia de features** (R4): `FeatureEngineeringService` referenciava
+  `item.created_at.date()` em quatro métodos, mas `News` expõe `published_date`. Substituição
+  sistemática elimina o `AttributeError` em tempo de execução.
+- **`_calculate_news_features` retornava `{}`** (R4): `FeatureEngineeringStage` agora constrói
+  o `DateRange` a partir do `input_data` e delega ao `FeatureEngineeringService.calculate_news_features`.
+
+### Adicionado
+- **Auto-tratamento via LLM reconectado** (R2): `_build_payload` em `executar_pipeline.py` passa
+  `use_llm_treatment` de forma dinâmica (checkbox visível apenas quando a etapa de tratamento está
+  ativa) e `treatment_model_path` da `session_state`.
+- **Breakpoint de conformidade** (R3): `NewsTreatmentStage` retorna `status="BLOCKED"` quando ≥ 1
+  entrada permanece com `treated=False`; o orquestrador para e propaga `pending_treatment_urls`
+  ao frontend. A UI exibe as URLs pendentes e duas opções: ir para *Tratamento de Notícias* ou
+  descartar os pendentes e reexecutar com `discarded_news_urls`. Markdown bruto não é apagado.
+- **Filtro de URLs descartadas** (R3): `NewsTreatmentStage._select_entries` exclui URLs em
+  `discarded_news_urls` antes do processamento; `pipeline.execute` aceita o parâmetro e o propaga
+  via `_create_initial_input`.
+- **Análise de sentimento ponta a ponta** (R4): `DataCollectionStage` recebe
+  `SentimentAnalyzerAdapter` via construtor; em `_entry_to_news` parseia o frontmatter do markdown
+  tratado, cria entidades `News` com `published_date` e popula `sentiment_score` chamando
+  `SentimentAnalyzerAdapter.analyze_sentiment(body)`. Pipeline injeta o analyzer via
+  `DependencyContainer.get_sentiment_analyzer()`.
+- **Documentação técnica da pipeline** (R7): `docs/PIPELINE.md` — visão hexagonal,
+  diagrama Mermaid de fluxo de dados, descrição de cada etapa (entradas/saídas/contratos),
+  tabela de features, análise de sentimento, Teste de Granger, walk-forward validation,
+  persistência e contratos de dados entre etapas.
+- **Schemas BLOCKED e discardados** (R3): `StageResultDTO.status` e `PipelineRunResponse.status`
+  incluem `"BLOCKED"`; `PipelineExecuteRequest` expõe `discarded_news_urls`;
+  `PipelineRunResponse` expõe `pending_treatment_urls`.
+
+### Removido
+- **Marcadores `(R6)` em comentários de código** (R6): removidos de `executar_pipeline.py` e
+  `test_news_treatment_stage.py`; texto explicativo preservado.
+
+### Testes (R8)
+- `test_news_treatment_stage.py` reescrito: `test_manual_mode_passthrough_when_no_treated_doc`
+  agora espera `BLOCKED`; novos casos cobrem BLOCKED com múltiplos pendentes, descarte de URLs,
+  descarte total (sucesso com saída vazia), LLM não chamado quando doc já existe.
+
+---
+
 ## [Não lançado] — Iteração 3 (R1–R9)
 
 Correção de data leakage, ajustes visuais no light mode, render do Google CSE, campo

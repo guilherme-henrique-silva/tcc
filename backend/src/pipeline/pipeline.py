@@ -41,13 +41,14 @@ class PipelineResult:
     """Encapsulates pipeline execution result."""
 
     pipeline_id: str
-    status: str  # "SUCCESS", "FAILED"
+    status: str  # "SUCCESS", "FAILED", "BLOCKED"
     start_time: datetime
     end_time: datetime
     stages_executed: List[str]
     stage_results: Dict[str, PipelineStageResult]
     error_message: Optional[str] = None
     checkpoint_id: Optional[str] = None
+    pending_treatment_urls: Optional[List[str]] = None
 
 
 class DataPipeline:
@@ -78,6 +79,7 @@ class DataPipeline:
         news_file_path: str = None,
         use_llm_treatment: bool = False,
         treatment_model_path: Optional[str] = None,
+        discarded_news_urls: Optional[List[str]] = None,
         on_substage: Optional[ProgressCallback] = None,
     ) -> PipelineResult:
         """
@@ -101,6 +103,7 @@ class DataPipeline:
                 news_links,
                 use_llm_treatment,
                 treatment_model_path,
+                discarded_news_urls,
             )
 
             stage_results: Dict[str, PipelineStageResult] = {}
@@ -117,6 +120,18 @@ class DataPipeline:
 
                 stage_results[stage.stage_name] = stage_result
                 stages_executed.append(stage.stage_name)
+
+                if stage_result.status == "BLOCKED":
+                    pending_urls = (stage_result.data or {}).get(
+                        "pending_treatment_urls", []
+                    )
+                    return self._create_blocked_result(
+                        overall_start,
+                        datetime.now(),
+                        stages_executed,
+                        stage_results,
+                        pending_urls,
+                    )
 
                 if stage_result.status == "FAILED":
                     return self._create_failed_result(
@@ -210,7 +225,11 @@ class DataPipeline:
                 self.container.get_storage(),
                 self.container.get_llm,
             ),
-            DataCollectionStage(data_source, tickers),
+            DataCollectionStage(
+                data_source,
+                tickers,
+                self.container.get_sentiment_analyzer(),
+            ),
             FeatureEngineeringStage(),
             ConfoundingHandlerStage(),
             ModelingPreparationStage(),
@@ -269,6 +288,7 @@ class DataPipeline:
         news_links: Optional[List[str]],
         use_llm_treatment: bool = False,
         treatment_model_path: Optional[str] = None,
+        discarded_news_urls: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Create initial input for first stage."""
         return {
@@ -281,6 +301,7 @@ class DataPipeline:
             "pipeline_id": self.pipeline_id,
             "use_llm_treatment": use_llm_treatment,
             "treatment_model_path": treatment_model_path,
+            "discarded_news_urls": discarded_news_urls or [],
         }
 
     def _merge_stage_output(
@@ -344,6 +365,25 @@ class DataPipeline:
             stages_executed=stages_executed,
             stage_results=stage_results,
             error_message=error_message,
+        )
+
+    def _create_blocked_result(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        stages_executed: List[str],
+        stage_results: Dict,
+        pending_treatment_urls: List[str],
+    ) -> PipelineResult:
+        """Create a BLOCKED pipeline result when treatment conformance gate fires."""
+        return PipelineResult(
+            pipeline_id=self.pipeline_id,
+            status="BLOCKED",
+            start_time=start_time,
+            end_time=end_time,
+            stages_executed=stages_executed,
+            stage_results=stage_results,
+            pending_treatment_urls=pending_treatment_urls,
         )
 
     def _create_checkpoint_not_found_result(self, checkpoint_id: str) -> PipelineResult:

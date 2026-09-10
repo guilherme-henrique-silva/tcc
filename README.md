@@ -10,23 +10,22 @@ A implementação segue **Arquitetura Hexagonal** (ports & adapters) e
 **Object Calisthenics**, com backend em **FastAPI** e frontend em **Streamlit**.
 Consulte o [CHANGELOG.md](CHANGELOG.md) para o histórico de iterações.
 
-### Novidades da Iteração 3
+### Novidades da Iteração 4
 
-- **Correção de data leakage** — normalização min-max por fold dentro do walk-forward;
-  parâmetros ajustados exclusivamente no treino, aplicados ao teste.
-- **Light mode completo** — toggle, `date_input` e botões agora exibem fundo claro e
-  texto legível; dark mode intacto.
-- **Embed Google CSE** — ao informar um `cx`, o mecanismo de busca do Google é
-  renderizado diretamente na tela de upload.
-- **`url` obrigatório no CSV** — documentação e adapter atualizados; linhas sem URL
-  são descartadas silenciosamente.
-- **Campo `category`** — `NewsCategory` enum com 5 categorias; a LLM classifica cada
-  notícia; campo presente no frontmatter, no banco e nos templates.
-- **Tela de tratamento** — editor renderiza à direita do original; botões
-  **✅ Aceitar** (persiste + avança) e **↩️ Descartar** (restaura original) em todos
-  os contextos.
-- **Limpeza de docstrings** — referências a `(Rule N)` e números de seção removidas
-  (175 ocorrências em 26 arquivos de backend + frontend).
+- **Templates Docling corretos** — coluna "original" exibe saída bruta do Docling (sem
+  frontmatter); editor exibe o formato tratado com frontmatter. Data no padrão DD-MM-AAAA.
+- **Auto-tratamento via LLM reconectado** — checkbox visível quando a etapa de tratamento
+  está ativa; `use_llm_treatment` e `treatment_model_path` propagados corretamente ao backend.
+- **Breakpoint de conformidade** — se ≥ 1 notícia permanecer não tratada após a etapa de
+  tratamento, a pipeline pára com status `BLOCKED`; o frontend exibe as URLs pendentes e
+  oferece duas saídas: tratar via UI ou descartar os pendentes e avançar.
+- **Sentimento ponta a ponta** — `DataCollectionStage` cria entidades `News` com
+  `sentiment_score` populado via `SentimentAnalyzerAdapter` (BERT multilingual). Features
+  de sentimento agregadas diariamente pelo `FeatureEngineeringService`.
+- **Documentação técnica** — `docs/PIPELINE.md` com diagrama Mermaid, arquitetura hexagonal,
+  contratos de dados, fundamentação de features, Granger e walk-forward.
+- **Testes atualizados** — `test_news_treatment_stage.py` cobre breakpoint, descarte,
+  reutilização, LLM e filtros.
 
 ---
 

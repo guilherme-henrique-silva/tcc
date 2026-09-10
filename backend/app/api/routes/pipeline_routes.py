@@ -72,6 +72,7 @@ async def execute_pipeline(request: PipelineExecuteRequest):
         news_file_path=request.news_file_path,
         use_llm_treatment=request.use_llm_treatment,
         treatment_model_path=request.treatment_model_path,
+        discarded_news_urls=request.discarded_news_urls,
     )
 
     return _to_run_response(result)
@@ -348,6 +349,7 @@ def _to_run_response(result) -> PipelineRunResponse:
         stages_executed=result.stages_executed,
         stage_results=stage_results,
         error_message=result.error_message,
+        pending_treatment_urls=result.pending_treatment_urls,
     )
 
 

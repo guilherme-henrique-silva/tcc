@@ -2,37 +2,40 @@
   "contributes": {
     "chatSkills": [
       {
+        "path": "./.claude/skills/analytics-engineer/SKILL.md"
+      },
+      {
         "path": "./.claude/skills/building-pydantic-ai-agents/SKILL.md"
+      },
+      {
+        "path": "./.claude/skills/business-intelligence/SKILL.md"
       },
       {
         "path": "./.claude/skills/changelog-generator/SKILL.md"
       },
       {
+        "path": "./.claude/skills/data-analyst/SKILL.md"
+      },
+      {
+        "path": "./.claude/skills/data-scientist/SKILL.md"
+      },
+      {
         "path": "./.claude/skills/dignified-python/SKILL.md"
       },
       {
+        "path": "./.claude/skills/docling-document-intelligence/SKILL.md"
+      },
+      {
         "path": "./.claude/skills/mcp-builder/SKILL.md"
+      },
+      {
+        "path": "./.claude/skills/ml-ops-engineer/SKILL.md"
       },
       {
         "path": "./.claude/skills/object-calisthenics/SKILL.md"
       },
       {
         "path": "./.claude/skills/trabalhos-academicos/SKILL.md"
-      },
-      {
-        "path": "./.claude/skills/data-analytics/analytics-engineer/SKILL.md"
-      },
-      {
-        "path": "./.claude/skills/data-analytics/business-intelligence/SKILL.md"
-      },
-      {
-        "path": "./.claude/skills/data-analytics/data-analyst/SKILL.md"
-      },
-      {
-        "path": "./.claude/skills/data-analytics/data-scientist/SKILL.md"
-      },
-      {
-        "path": "./.claude/skills/data-analytics/ml-ops-engineer/SKILL.md"
       }
     ]
   }

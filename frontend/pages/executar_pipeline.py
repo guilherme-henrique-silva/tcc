@@ -56,7 +56,7 @@ context_block(
 client = APIClient()
 
 # --------------------------------------------------------------------------- #
-# Seleção de etapas com dependências (R6)                                     #
+# Seleção de etapas com dependências                                           #
 # --------------------------------------------------------------------------- #
 st.subheader("Etapas a executar")
 st.caption(
@@ -92,14 +92,31 @@ for key, label in STAGE_LABELS.items():
 enabled = [key for key, active in stage_states.items() if active]
 
 # --------------------------------------------------------------------------- #
-# Aviso sobre LLM                                                              #
+# Configuração de auto-tratamento via LLM                                      #
 # --------------------------------------------------------------------------- #
-st.info(
-    "💡 **Tratamento via LLM:** a escolha do modelo e a execução do tratamento são feitas "
-    "na tela **3 · Tratamento de Notícias**, após a execução da etapa de Transformação Docling. "
-    "Ative a etapa **1 · Tratamento de notícias** acima para que o resultado seja processado "
-    "automaticamente ao executar a pipeline."
-)
+_treatment_enabled = stage_states.get("news_treatment", False)
+
+if _treatment_enabled:
+    use_llm_auto = st.checkbox(
+        "🤖 Tratar automaticamente via LLM as notícias ainda não tratadas",
+        value=False,
+        help=(
+            "Quando ativo, a pipeline envia cada notícia pendente para o modelo selecionado "
+            "na tela **Tratamento de Notícias**. Notícias já tratadas são reutilizadas sem "
+            "novo processamento."
+        ),
+    )
+    if use_llm_auto:
+        model_path = st.session_state.get("treatment_model_path")
+        if model_path:
+            st.caption(f"📦 Modelo: `{model_path}`")
+        else:
+            st.warning(
+                "Nenhum modelo selecionado. Acesse **Tratamento de Notícias** e escolha um "
+                "modelo local antes de executar."
+            )
+else:
+    use_llm_auto = False
 
 # Links coletados manualmente — vindos da página de upload.
 news_links = st.session_state.get("news_links", [])
@@ -111,7 +128,7 @@ else:
 start_date, end_date = get_date_range()
 
 
-def _build_payload(stages: list) -> dict:
+def _build_payload(stages: list, discarded: list | None = None) -> dict:
     return {
         "date_range": {
             "start_date": str(start_date),
@@ -119,8 +136,9 @@ def _build_payload(stages: list) -> dict:
         },
         "enabled_stages": stages,
         "news_links": news_links,
-        "use_llm_treatment": False,
+        "use_llm_treatment": use_llm_auto and _treatment_enabled,
         "treatment_model_path": st.session_state.get("treatment_model_path"),
+        "discarded_news_urls": discarded or [],
     }
 
 
@@ -148,6 +166,10 @@ def _render_stage_status(stage_name: str, status: str, stage_results: dict) -> N
         st.info(f"⏭️ {label} (SKIPPED)")
         return
 
+    if status == "BLOCKED":
+        st.warning(f"⏸️ {label} (aguardando tratamento)")
+        return
+
     if status == "FAILED":
         _render_failure(stage_name, label, stage_results)
         return
@@ -167,6 +189,51 @@ def _render_failure(stage_name: str, label: str, stage_results: dict) -> None:
         st.rerun()
 
 
+def _render_blocked(result: dict) -> None:
+    """Exibe registros pendentes e oferece as duas opções de resolução."""
+    pending_urls = result.get("pending_treatment_urls") or []
+
+    st.warning(
+        f"⏸️ **Pipeline pausada** — {len(pending_urls)} notícia(s) aguardam tratamento "
+        "antes de prosseguir."
+    )
+
+    with st.expander("Ver URLs pendentes", expanded=True):
+        for url in pending_urls:
+            st.code(url, language=None)
+
+    st.markdown("**Como prosseguir:**")
+    col_tratar, col_descartar = st.columns(2)
+
+    with col_tratar:
+        st.info(
+            "**Tratar os pendentes** — acesse a tela **Tratamento de Notícias**, conclua o "
+            "tratamento (manual ou LLM) e execute a pipeline novamente."
+        )
+        if st.button("📄 Ir para Tratamento de Notícias", use_container_width=True):
+            st.switch_page("pages/tratamento_noticias.py")
+
+    with col_descartar:
+        st.warning(
+            "**Descartar e avançar** — exclui os pendentes desta execução e prossegue "
+            "apenas com as notícias já tratadas. O Markdown bruto **não é apagado**."
+        )
+        if st.button(
+            f"🗑️ Descartar {len(pending_urls)} pendente(s) e avançar",
+            use_container_width=True,
+            type="primary",
+        ):
+            try:
+                with st.spinner("Executando pipeline sem os pendentes..."):
+                    new_result = client.execute_pipeline(
+                        _build_payload(enabled, discarded=pending_urls)
+                    )
+                    st.session_state.run_result = new_result
+                st.rerun()
+            except Exception as e:  # noqa: BLE001
+                st.error(f"❌ Erro: {e}")
+
+
 # --------------------------------------------------------------------------- #
 # Execução                                                                     #
 # --------------------------------------------------------------------------- #
@@ -179,8 +246,7 @@ if st.button("▶️ Iniciar Pipeline", key="execute_btn", use_container_width=T
                 result = client.execute_pipeline(_build_payload(enabled))
                 st.session_state.run_result = result
 
-            # Exibe UUID como feedback imediato (R6)
-            pipeline_id = result.get("pipeline_id") or result.get("pipeline_id")
+            pipeline_id = result.get("pipeline_id")
             if pipeline_id:
                 st.success(f"✅ Execução concluída — ID: `{pipeline_id}`")
 
@@ -194,16 +260,21 @@ st.markdown("---")
 # --------------------------------------------------------------------------- #
 result = st.session_state.get("run_result")
 if result:
-    st.subheader("📊 Resultado da Execução")
+    overall_status = result.get("status", "—")
 
-    pipeline_id = result.get("pipeline_id")
-    if pipeline_id:
-        st.code(f"ID da execução: {pipeline_id}", language=None)
+    if overall_status == "BLOCKED":
+        _render_blocked(result)
+    else:
+        st.subheader("📊 Resultado da Execução")
 
-    st.metric("Status geral", result.get("status", "—"))
+        pipeline_id = result.get("pipeline_id")
+        if pipeline_id:
+            st.code(f"ID da execução: {pipeline_id}", language=None)
 
-    stage_results = result.get("stage_results", {})
-    executed = [s for s in STAGE_LABELS if s in stage_results]
+        st.metric("Status geral", overall_status)
 
-    st.markdown("### Etapas")
-    _render_progress(executed, stage_results)
+        stage_results = result.get("stage_results", {})
+        executed = [s for s in STAGE_LABELS if s in stage_results]
+
+        st.markdown("### Etapas")
+        _render_progress(executed, stage_results)
