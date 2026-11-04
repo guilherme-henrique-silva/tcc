@@ -37,6 +37,23 @@ class TestDataPipeline:
             "modeling_preparation",
         ]
     
+    def test_initial_input_news_links_defaults_to_empty_dict(self):
+        """Sem links, a entrada da etapa 0 é um objeto vazio (data -> links)."""
+        data = self.pipeline._create_initial_input(
+            datetime(2026, 1, 1), datetime(2026, 12, 31), None, None
+        )
+
+        assert data["news_links"] == {}
+
+    def test_initial_input_forwards_news_links_grouped_by_date(self):
+        links = {"2026-11-03": ["https://g1.globo.com/a.ghtml"]}
+
+        data = self.pipeline._create_initial_input(
+            datetime(2026, 1, 1), datetime(2026, 12, 31), None, links
+        )
+
+        assert data["news_links"] == links
+
     def test_pipeline_validate_input_valid(self):
         """Test input validation with valid data."""
         start_date = datetime(2025, 1, 1)

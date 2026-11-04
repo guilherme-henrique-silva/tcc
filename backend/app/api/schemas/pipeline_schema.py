@@ -2,7 +2,9 @@
 
 from datetime import date, datetime
 from typing import List, Optional, Dict, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from src.domain.value_objects import NewsLinksByDate
 
 
 # Request schemas
@@ -33,9 +35,9 @@ class PipelineExecuteRequest(BaseModel):
         None,
         description="Stages to run (feature toggle). None = all stages enabled."
     )
-    news_links: Optional[List[str]] = Field(
+    news_links: Optional[Dict[str, List[str]]] = Field(
         None,
-        description="News links for the Docling transform stage (manual collection)."
+        description="Links de notícias agrupados por data de publicação (YYYY-MM-DD)."
     )
     use_llm_treatment: bool = Field(
         False,
@@ -50,6 +52,15 @@ class PipelineExecuteRequest(BaseModel):
         description="URLs to exclude from treatment (user chose to discard and advance)."
     )
 
+    @field_validator("news_links", mode="before")
+    @classmethod
+    def _validate_news_links(cls, value: object) -> Optional[Dict[str, List[str]]]:
+        """Valida/normaliza via NewsLinksByDate; ValueError vira HTTP 422 com a mensagem."""
+        if value is None:
+            return None
+
+        return NewsLinksByDate.from_raw(value).to_dict()
+
     class Config:
         schema_extra = {
             "example": {
@@ -59,7 +70,10 @@ class PipelineExecuteRequest(BaseModel):
                     "end_date": "2025-12-31",
                 },
                 "enabled_stages": ALL_STAGE_NAMES,
-                "news_links": ["https://g1.globo.com/economia/noticia.ghtml"],
+                "news_links": {
+                    "2025-03-10": ["https://g1.globo.com/economia/noticia/a.ghtml"],
+                    "2025-03-11": ["https://www.infomoney.com.br/mercados/b/"],
+                },
                 "use_llm_treatment": False,
             }
         }
@@ -89,6 +103,7 @@ class ProcNewsDTO(BaseModel):
     PROC_TS: str
     NM_SITE: Optional[str] = None
     PROC_SUCCESS: bool
+    NEWS_DATE: Optional[str] = None
 
 
 class ConvertLinkRequest(BaseModel):

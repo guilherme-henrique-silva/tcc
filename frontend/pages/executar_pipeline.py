@@ -3,8 +3,9 @@
 import streamlit as st
 from stqdm import stqdm
 
-from api_client import APIClient
+from api_client import APIClient, api_error_message
 from env_config import STAGE_LABELS, SUBSTAGES, get_date_range
+from components import news_links as nl
 from components.context import context_block
 
 st.title("🚀 Executar Pipeline")
@@ -20,8 +21,10 @@ context_block(
     ---
     **0 · Transformação Docling** *(opcional)*
     Converte o **conteúdo** de cada link colado na tela de Upload em texto Markdown estruturado,
-    usando a biblioteca Docling. Esse Markdown bruto é a matéria-prima para o tratamento
-    e a extração de features de texto. Se não houver links novos, esta etapa pode ser pulada.
+    usando a biblioteca Docling. Os links chegam **agrupados por data de publicação**
+    (`{"AAAA-MM-DD": [links]}`) e cada notícia leva essa data adiante. Esse Markdown bruto é a
+    matéria-prima para o tratamento e a extração de features de texto. Se não houver links
+    novos, esta etapa pode ser pulada.
 
     **1 · Tratamento de notícias** *(opcional — depende da etapa 0)*
     Limpa o ruído da página original (menus, rodapés, banners) e padroniza um cabeçalho
@@ -119,9 +122,10 @@ else:
     use_llm_auto = False
 
 # Links coletados manualmente — vindos da página de upload.
-news_links = st.session_state.get("news_links", [])
+news_links = st.session_state.get("news_links") or {}
 if news_links:
-    st.caption(f"🔗 {len(news_links)} link(s) de notícias na sessão.")
+    total_links, total_days = nl.summary(news_links)
+    st.caption(f"🔗 {total_links} link(s) em {total_days} data(s) na sessão.")
 else:
     st.caption("ℹ️ Nenhum link de notícia na sessão (ver página *Upload de Dados*).")
 
@@ -231,7 +235,7 @@ def _render_blocked(result: dict) -> None:
                     st.session_state.run_result = new_result
                 st.rerun()
             except Exception as e:  # noqa: BLE001
-                st.error(f"❌ Erro: {e}")
+                st.error(f"❌ Erro: {api_error_message(e)}")
 
 
 # --------------------------------------------------------------------------- #
@@ -251,7 +255,7 @@ if st.button("▶️ Iniciar Pipeline", key="execute_btn", use_container_width=T
                 st.success(f"✅ Execução concluída — ID: `{pipeline_id}`")
 
         except Exception as e:  # noqa: BLE001
-            st.error(f"❌ Erro: {e}")
+            st.error(f"❌ Erro: {api_error_message(e)}")
 
 st.markdown("---")
 

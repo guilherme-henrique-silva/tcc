@@ -5,6 +5,27 @@ import pandas as pd
 from typing import Dict, List, Optional, Any
 import os
 
+def api_error_message(error: Exception) -> str:
+    """Texto do erro para exibir ao usuário: usa o `detail` da API (ex.: 422) quando houver."""
+    response = getattr(error, "response", None)
+    if response is None:
+        return str(error)
+
+    try:
+        detail = response.json().get("detail")
+    except (ValueError, AttributeError):
+        return str(error)
+
+    if isinstance(detail, str):
+        return detail
+
+    if isinstance(detail, list):
+        messages = [str(item.get("msg", item)) if isinstance(item, dict) else str(item) for item in detail]
+        return "; ".join(m.removeprefix("Value error, ") for m in messages)
+
+    return str(error)
+
+
 class APIClient:
     """Client for communicating with FastAPI backend."""
     

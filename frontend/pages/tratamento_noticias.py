@@ -3,6 +3,7 @@
 import streamlit as st
 
 from api_client import APIClient
+from components import news_links as nl
 from components.context import context_block
 
 try:
@@ -30,7 +31,8 @@ context_block(
 )
 
 client = APIClient()
-links = st.session_state.get("news_links", [])
+link_groups = st.session_state.get("news_links") or {}
+links = nl.flatten(link_groups)
 
 st.session_state.setdefault("orig_md", {})
 st.session_state.setdefault("treated_md", {})
@@ -144,7 +146,10 @@ def _treat_with_llm(url: str, model_path: str) -> None:
 
 def _render_record(url: str, use_llm: bool, model_path: str) -> None:
     """Renderiza um registro: original (esq.) × editor (dir.) lado a lado."""
-    with st.expander(url, expanded=False):
+    day = nl.date_of(link_groups, url)
+    label = f"📅 {nl.to_br(day)} · {url}" if day else url
+
+    with st.expander(label, expanded=False):
         if url not in originals:
             if st.button("📥 Carregar original", key=f"load_{url}"):
                 _load_original(url)
@@ -167,6 +172,28 @@ def _render_record(url: str, use_llm: bool, model_path: str) -> None:
             _render_editor_and_save(url, original)
 
 
+def _frontmatter_date(markdown: str) -> str:
+    """Valor do campo `date:` (DD-MM-AAAA) do frontmatter, ou string vazia."""
+    for line in markdown.splitlines():
+        if line.strip().lower().startswith("date:"):
+            return line.split(":", 1)[1].strip()
+
+    return ""
+
+
+def _warn_if_date_diverges(url: str, edited: str) -> None:
+    """Avisa (sem bloquear) quando o `date` editado difere da data informada no upload."""
+    informed = nl.date_of(link_groups, url)
+    edited_date = _frontmatter_date(edited)
+
+    if informed and edited_date and edited_date != nl.to_br(informed):
+        st.warning(
+            f"⚠️ A data do frontmatter ({edited_date}) difere da data de publicação "
+            f"informada no upload ({nl.to_br(informed)}). O documento foi salvo; "
+            "a data do frontmatter prevalece na coleta."
+        )
+
+
 def _render_editor_and_save(url: str, original: str) -> None:
     current = treated.get(url, original or _TEMPLATE_TRATADO)
 
@@ -184,6 +211,7 @@ def _render_editor_and_save(url: str, original: str) -> None:
             treated[url] = edited
             client.save_treated_news(url, edited, st.session_state.get("last_proc_id"))
             st.success("Documento tratado salvo.")
+            _warn_if_date_diverges(url, edited)
     with col_descartar:
         if st.button("↩️ Descartar", key=f"discard_{url}"):
             treated.pop(url, None)

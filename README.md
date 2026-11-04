@@ -90,7 +90,7 @@ backend/
 | Ordem | `stage_name`            | Subetapas (em ordem)                                                        |
 |-------|-------------------------|-----------------------------------------------------------------------------|
 | 0     | `docling_transform`     | `validar_links` → `converter_markdown` → `registrar_proc_news`              |
-| 1     | `news_treatment`        | `selecionar_registros` → `tratar_llm` → `persistir_tratados`                |
+| 1     | `news_treatment`        | `selecionar_registros` → `tratar_llm` → `verificar_conformidade`            |
 | 2     | `data_collection`       | `coletar_precos` → `consolidar_noticias`                                    |
 | 3     | `feature_engineering`   | `features_acoes` → `features_noticias` → `features_concorrentes`            |
 | 4     | `confounding_handling`  | `coletar_selic` → `coletar_dolar` → `coletar_commodities` → `teste_granger` |
@@ -111,7 +111,7 @@ Cada etapa habilitada executa; cada etapa desabilitada retorna
 
 | Método | Rota                       | Descrição                                                   |
 |--------|----------------------------|-------------------------------------------------------------|
-| POST   | `/pipeline/execute`        | Executa a pipeline (recebe `enabled_stages`, `news_links`, `use_llm_treatment`). |
+| POST   | `/pipeline/execute`        | Executa a pipeline (recebe `enabled_stages`, `news_links` como objeto *data de publicação → links*, `use_llm_treatment`). `news_links` inválido → 422. |
 | GET    | `/pipeline/proc_news`      | Consulta `PIPELINE_PROC_NEWS` por URL (de-duplicação).      |
 | POST   | `/pipeline/convert_link`   | Converte um link em Markdown sob demanda (UI de tratamento). |
 | POST   | `/pipeline/treat_news`     | Trata um Markdown via LLM (local/API).                      |
@@ -124,6 +124,25 @@ Cada etapa habilitada executa; cada etapa desabilitada retorna
 | GET    | `/health`                  | Health check do backend.                                    |
 | GET    | `/health/db`               | Health check do banco (status + motivo do erro).           |
 
+Exemplo de payload de `POST /api/pipeline/execute` (as chaves de `news_links` são datas de
+publicação `YYYY-MM-DD`, não futuras; a mesma URL só pode aparecer em uma data):
+
+```json
+{
+  "date_range": {"start_date": "2026-11-01", "end_date": "2026-11-30"},
+  "news_links": {
+    "2026-11-03": [
+      "https://g1.globo.com/economia/noticia/a.ghtml",
+      "https://www.infomoney.com.br/mercados/b/"
+    ],
+    "2026-11-04": [
+      "https://g1.globo.com/economia/noticia/c.ghtml",
+      "https://www.infomoney.com.br/mercados/d/"
+    ]
+  }
+}
+```
+
 A resposta de `/pipeline/execute` lista o status de **cada** etapa
 (`SUCCESS`/`SKIPPED`/`FAILED`), permitindo retentativa por etapa no frontend.
 
@@ -135,8 +154,10 @@ Navegação via `st.navigation`/`st.Page` (arquivos sem prefixo numérico; o nú
 só no rótulo do sidebar). Cada página traz um **bloco de contexto de negócio** em PT-BR e
 respeita o **modo escuro** alternável no sidebar.
 
-1. **Upload de Dados** — input em lote dos links (`streamlit-tags`) + de-duplicação
-   contra `PIPELINE_PROC_NEWS`; checkbox para **Google CSE** (exibe campo de ID
+1. **Upload de Dados** — links **agrupados por data de publicação** (seletor de data +
+   `streamlit-tags`, com remoção por data ou por link), **importação de JSON** no formato
+   *data → links*, aviso (não bloqueante) para datas fora do período de análise e
+   de-duplicação contra `PIPELINE_PROC_NEWS` (exibe a `NEWS_DATE` já registrada); checkbox para **Google CSE** (exibe campo de ID
    condicionalmente); aba CSV com tabela de colunas esperadas e aviso de descarte.
 2. **Executar Pipeline** — seleção de etapas por **checkbox** com mapa de dependências
    (etapas obrigatórias fixas; opcionais desabilitadas enquanto pré-requisito estiver
@@ -169,7 +190,7 @@ Bibliotecas: `stqdm` (progresso), `streamlit-tags` (links), `streamlit-code-edit
 | Tabela                  | Campos principais                                                          |
 |-------------------------|----------------------------------------------------------------------------|
 | `PIPELINE_PROC_ID`      | `PROC_ID` (PK), `PROC_TS_START`, `PROC_TS_END` (NULL enquanto roda)         |
-| `PIPELINE_PROC_NEWS`    | `URL` (PK), `PROC_ID`, `PROC_TS`, `NM_SITE`, `PROC_SUCCESS`                 |
+| `PIPELINE_PROC_NEWS`    | `URL` (PK), `PROC_ID`, `PROC_TS`, `NM_SITE`, `PROC_SUCCESS`, `NEWS_DATE` (data de publicação, ISO) |
 | `PIPELINE_TREATED_NEWS` | `URL` (PK), `PROC_ID`, `TITLE`, `SUBTITLE`, `NEWS_DATE`, `CONTENT`          |
 | `features_<dataset>`    | colunas dinâmicas das features calculadas (uma por dataset)                |
 | `validation_results`    | `id` (PK), `data` (JSON), `created_at`                                     |
@@ -177,8 +198,9 @@ Bibliotecas: `stqdm` (progresso), `streamlit-tags` (links), `streamlit-code-edit
 
 Cada execução grava uma linha em `PIPELINE_PROC_ID` (início; `PROC_TS_END` é carimbado ao
 final, em sucesso ou falha) e propaga o `PROC_ID` para `PIPELINE_PROC_NEWS` e
-`PIPELINE_TREATED_NEWS`. Bancos antigos são migrados de forma **idempotente** na
-inicialização (`TS_PROC` → `PROC_TS`, adição de `PROC_ID`), sem perda de dados.
+`PIPELINE_TREATED_NEWS`. Se `PIPELINE_PROC_NEWS` existir com schema desatualizado, ela é
+**recriada** na inicialização (`DROP` + `CREATE`, de forma idempotente), **sem preservar os
+dados antigos** — o projeto ainda não possui dados de produção.
 
 `NM_SITE` é derivado do domínio do link (ex.: `g1.globo.com` → `G1`) entre os
 portais G1, UOL, CNN Brasil, Folha, Estadão e Metrópoles.

@@ -186,5 +186,52 @@ def test_reuses_existing_treated_doc_and_restamps_run():
     assert storage.saved["u1"].proc_id == "run-1"
 
 
+# ---------------------------------------------------------------------------
+# news_date preservado (Iteração 5)
+# ---------------------------------------------------------------------------
+
+_DATED = {
+    "news_markdowns": [
+        {"url": "u1", "site": "G1", "markdown": "bruto", "success": True,
+         "news_date": "2026-11-03"},
+    ],
+}
+
+
+def test_news_date_preserved_on_reuse_path():
+    stage = NewsTreatmentStage(_FakeStorage({"u1": _TREATED_RECORD}), lambda mp: _FakeLlm())
+
+    result = stage.execute(_input(False, extra=_DATED))
+
+    assert result.data["news_markdowns"][0]["news_date"] == "2026-11-03"
+
+
+def test_news_date_preserved_on_llm_path():
+    stage = NewsTreatmentStage(_FakeStorage(), lambda mp: _FakeLlm())
+
+    result = stage.execute(_input(True, extra=_DATED))
+
+    assert result.data["news_markdowns"][0]["news_date"] == "2026-11-03"
+
+
+def test_news_date_preserved_on_passthrough_path():
+    stage = NewsTreatmentStage(_FakeStorage(), lambda mp: _FakeLlm())
+
+    result = stage.execute(_input(False, extra=_DATED))
+
+    assert result.status == "BLOCKED"  # passthrough => treated=False => pendente
+    entry = stage._passthrough(_DATED["news_markdowns"][0])
+    assert entry["news_date"] == "2026-11-03"
+    assert entry["treated"] is False
+
+
+def test_missing_news_date_yields_none():
+    stage = NewsTreatmentStage(_FakeStorage({"u1": _TREATED_RECORD}), lambda mp: _FakeLlm())
+
+    result = stage.execute(_input(False))
+
+    assert result.data["news_markdowns"][0]["news_date"] is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

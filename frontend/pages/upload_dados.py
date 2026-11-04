@@ -8,6 +8,7 @@ import streamlit.components.v1 as components
 from streamlit_tags import st_tags
 
 from api_client import APIClient
+from components import news_links as nl
 from components.context import context_block
 from env_config import get_date_range
 
@@ -18,7 +19,10 @@ context_block(
     """
     Não há crawler automatizado neste projeto: por limitação técnica, **você cola os
     links** das notícias relevantes (ex.: matérias do G1, Valor, InfoMoney sobre o Banco
-    do Brasil e concorrentes). O **conteúdo de cada link** é convertido em **Markdown**
+    do Brasil e concorrentes), **agrupados pela data de publicação** (não pode ser futura,
+    e a mesma URL só pode constar em uma data). Também é possível importar um JSON no
+    formato `{"AAAA-MM-DD": ["link", ...]}`. Datas fora do período de análise geram apenas
+    um aviso. O **conteúdo de cada link** é convertido em **Markdown**
     pelo Docling e segue para o tratamento e a engenharia de features. Aqui você também
     pode subir um CSV de notícias e conferir o intervalo de datas das ações (obtidas via
     yfinance).
@@ -33,20 +37,84 @@ tab_links, tab_csv, tab_acoes = st.tabs(["Links de Notícias", "Notícias (CSV)"
 # Aba 1 — Links de Notícias                                                   #
 # --------------------------------------------------------------------------- #
 with tab_links:
-    st.subheader("Cole os links das notícias (coleta manual)")
+    st.subheader("Cole os links das notícias, agrupados por data de publicação")
 
-    links = st_tags(
-        label="Cole os links das notícias",
-        text="Pressione Enter para adicionar",
-        value=st.session_state.get("news_links", []),
-        key="news_links",
-    )
+    # `news_links` é Dict[str, List[str]] (data ISO -> links); o widget do st_tags usa
+    # outra key para não sobrescrever o dicionário da sessão.
+    if not isinstance(st.session_state.get("news_links"), dict):
+        st.session_state["news_links"] = {}
+    st.session_state.setdefault("news_links_nonce", 0)
 
-    if links:
-        st.caption(f"{len(links)} link(s) adicionado(s).")
+    groups = st.session_state["news_links"]
+    today = date.today()
+
+    col_day, col_links = st.columns([1, 3])
+    with col_day:
+        publication_day = st.date_input(
+            "Data de publicação",
+            value=today,
+            max_value=today,
+            key="news_links_day",
+        )
+    with col_links:
+        typed_links = st_tags(
+            label="Links publicados nesta data",
+            text="Pressione Enter para adicionar",
+            value=[],
+            key=f"news_links_input_{st.session_state['news_links_nonce']}",
+        )
+
+    if st.button("➕ Adicionar links desta data"):
+        try:
+            st.session_state["news_links"] = nl.add_group(groups, publication_day, typed_links)
+            st.session_state["news_links_nonce"] += 1  # novo widget => campo limpo
+            st.rerun()
+        except ValueError as e:
+            st.error(str(e))
+
+    with st.expander("📥 Importar JSON (data → links)"):
+        st.caption('Formato: `{"2026-11-03": ["https://...", "https://..."], "2026-11-04": ["https://..."]}`')
+        json_text = st.text_area("Cole o JSON", key="news_links_json_text", height=140)
+        json_file = st.file_uploader("ou envie um arquivo .json", type="json", key="news_links_json_file")
+
+        if st.button("Importar JSON"):
+            try:
+                raw = json_file.getvalue().decode("utf-8") if json_file else json_text
+                imported = nl.parse_json(raw)
+                merged = groups
+                for day, urls in imported.items():
+                    merged = nl.add_group(merged, day, urls)
+                st.session_state["news_links"] = merged
+                st.rerun()
+            except (ValueError, UnicodeDecodeError) as e:
+                st.error(f"Importação recusada: {e}")  # sessão preservada
+
+    if groups:
+        total_links, total_days = nl.summary(groups)
+        st.caption(f"🔗 {total_links} link(s) em {total_days} data(s).")
+
+        range_value = st.session_state.get("date_range") or get_date_range()
+        for day in nl.dates_outside(groups, range_value[0], range_value[1]):
+            st.warning(
+                f"📅 {nl.to_br(day)} está fora do período de análise "
+                f"({range_value[0]} a {range_value[1]}); os links seguem para a pipeline."
+            )
+
+        for day in sorted(groups):
+            with st.expander(f"📅 {nl.to_br(day)} · {len(groups[day])} link(s)"):
+                for index, url in enumerate(groups[day]):
+                    col_url, col_rm = st.columns([6, 1])
+                    col_url.code(url, language=None)
+                    if col_rm.button("🗑️", key=f"rm_link_{day}_{index}", help="Remover link"):
+                        st.session_state["news_links"] = nl.remove_link(groups, day, url)
+                        st.rerun()
+
+                if st.button("🗑️ Remover esta data inteira", key=f"rm_day_{day}"):
+                    st.session_state["news_links"] = nl.remove_group(groups, day)
+                    st.rerun()
 
         if st.button("🔎 Verificar processamento (de-duplicação)"):
-            for url in links:
+            for url in nl.flatten(groups):
                 try:
                     existing = client.get_proc_news(url)
                 except Exception as e:  # noqa: BLE001
@@ -54,9 +122,11 @@ with tab_links:
                     continue
 
                 if existing and existing.get("PROC_SUCCESS"):
+                    registered = existing.get("NEWS_DATE")
+                    suffix = f", data registrada: {registered}" if registered else ""
                     st.info(
                         f"⏭️ '{url}' já processado em {existing['PROC_TS']} "
-                        f"(portal: {existing.get('NM_SITE')}). Reprocessamento evitado."
+                        f"(portal: {existing.get('NM_SITE')}{suffix}). Reprocessamento evitado."
                     )
                 else:
                     st.success(f"🆕 '{url}' ainda não processado — será convertido.")
@@ -88,8 +158,10 @@ with tab_links:
             st.warning("Informe o ID do mecanismo de pesquisa para habilitar a busca via CSE.")
 
     st.info(
-        "Os links ficam disponíveis na sessão e serão enviados à etapa "
-        "**Transformação Docling** na página *Executar Pipeline*."
+        "Os links ficam na sessão, **agrupados por data de publicação**, e serão enviados à "
+        "etapa **Transformação Docling** na página *Executar Pipeline*. A data informada "
+        "acompanha cada notícia até a coleta (vale como data de publicação quando o "
+        "tratamento não extrair uma)."
     )
 
 # --------------------------------------------------------------------------- #

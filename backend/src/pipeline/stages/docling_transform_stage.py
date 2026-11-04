@@ -1,8 +1,7 @@
 """Docling Transform Stage - converte links de notícias em Markdown (etapa 0)."""
 
-import json
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import date, datetime
 
 from src.pipeline.pipeline_stage import (
     PipelineStage,
@@ -10,6 +9,7 @@ from src.pipeline.pipeline_stage import (
     ProgressCallback,
 )
 from src.domain.models import ProcNewsRecord
+from src.domain.value_objects import NewsLinksByDate
 
 
 class DoclingTransformStage(PipelineStage):
@@ -39,7 +39,7 @@ class DoclingTransformStage(PipelineStage):
 
         try:
             self._report_substage(on_substage, "validar_links")
-            links = self._extract_links(input_data)
+            links = self._extract_dated_links(input_data)
 
             self._report_substage(on_substage, "converter_markdown")
             markdowns = self._convert_batch(links)
@@ -62,54 +62,38 @@ class DoclingTransformStage(PipelineStage):
                 str(e),
             )
 
-    def _extract_links(self, input_data: Dict[str, Any]) -> List[str]:
-        """Accept list[str] or a JSON string/object containing links."""
-        raw = input_data.get("news_links")
+    def _extract_dated_links(self, input_data: Dict[str, Any]) -> NewsLinksByDate:
+        """Read `input_data["news_links"]` as an object mapping publication date -> links.
 
-        if raw is None:
-            return []
+        Valid example (dict or the same content as a JSON string):
 
-        if isinstance(raw, str):
-            return self._parse_links_json(raw)
+            {"news_links": {
+                "2026-11-03": ["https://g1.globo.com/economia/noticia/a.ghtml",
+                               "https://www.infomoney.com.br/mercados/b/"],
+                "2026-11-04": ["https://g1.globo.com/economia/noticia/c.ghtml"],
+            }}
 
-        if isinstance(raw, list):
-            return [link for link in raw if isinstance(link, str) and link.strip()]
+        Edge cases: None/ausente/string em branco/`{}` -> coleção vazia (etapa SUCCESS
+        sem itens). Qualquer estrutura inválida levanta `ValueError`, que `execute`
+        converte em FAILED: lista plana (formato legado), `{"links": [...]}`, string que
+        não é JSON, data malformada ou futura, valor que não é lista, item vazio ou
+        não-string e a mesma URL em duas datas.
+        """
+        return NewsLinksByDate.from_raw(input_data.get("news_links"))
 
-        return []
-
-    def _parse_links_json(self, raw: str) -> List[str]:
-        """Parse a JSON payload that may contain a list or a {'links': [...]} dict."""
-        stripped = raw.strip()
-
-        if not stripped:
-            return []
-
-        try:
-            parsed = json.loads(stripped)
-        except json.JSONDecodeError:
-            return [stripped]
-
-        if isinstance(parsed, list):
-            return [link for link in parsed if isinstance(link, str)]
-
-        if isinstance(parsed, dict):
-            links = parsed.get("links", [])
-            return [link for link in links if isinstance(link, str)]
-
-        return []
-
-    def _convert_batch(self, links: List[str]) -> List[Dict[str, Any]]:
+    def _convert_batch(self, links: NewsLinksByDate) -> List[Dict[str, Any]]:
         """Convert each link into Markdown, ignoring non-textual media."""
         results = []
 
-        for url in links:
-            results.append(self._convert_single(url))
+        for url, news_date in links.items():
+            results.append(self._convert_single(url, news_date))
 
         return results
 
-    def _convert_single(self, url: str) -> Dict[str, Any]:
+    def _convert_single(self, url: str, news_date: date) -> Dict[str, Any]:
         """Convert one link, capturing success/failure per item."""
         site = self.converter.site_name(url)
+        published = news_date.isoformat()
 
         try:
             markdown = self.converter.to_markdown(url)
@@ -118,6 +102,7 @@ class DoclingTransformStage(PipelineStage):
                 "site": site,
                 "markdown": markdown,
                 "success": True,
+                "news_date": published,
             }
 
         except Exception as e:
@@ -127,6 +112,7 @@ class DoclingTransformStage(PipelineStage):
                 "markdown": "",
                 "success": False,
                 "error": str(e),
+                "news_date": published,
             }
 
     def _register_results(
@@ -145,6 +131,7 @@ class DoclingTransformStage(PipelineStage):
                 site_name=entry["site"],
                 proc_success=entry["success"],
                 proc_id=pipeline_id,
+                news_date=date.fromisoformat(entry["news_date"]),
             )
             self.repo.save_proc_news(record)
 

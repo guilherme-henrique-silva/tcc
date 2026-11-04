@@ -86,11 +86,11 @@ Arquivo de referência: [`backend/src/pipeline/dependency_container.py`](../back
 
 ```mermaid
 flowchart LR
-    A([Links de notícias\nnews_links]) --> B
+    A([Links por data de publicação\nnews_links: data → links]) --> B
     subgraph B [Etapa 0 · Docling]
         B1[DoclingConverterAdapter\n.to_markdown]
     end
-    B --> |news_markdowns| C
+    B --> |news_markdowns\ncom news_date| C
 
     subgraph C [Etapa 1 · Tratamento]
         C1{treated=True\npara todos?}
@@ -136,14 +136,39 @@ flowchart LR
 | **Classe** | `DoclingTransformStage` |
 | **Arquivo** | [`backend/src/pipeline/stages/docling_transform_stage.py`](../backend/src/pipeline/stages/docling_transform_stage.py) |
 | **Adaptador** | `DoclingConverterAdapter` (wraps biblioteca Docling) |
-| **Entrada** | `news_links: List[str]` |
-| **Saída** | `news_markdowns: List[{url, site, markdown, success}]` |
+| **Entrada** | `news_links: Dict[date, List[str]]` (chave = data de publicação `YYYY-MM-DD`) |
+| **Saída** | `news_markdowns: List[{url, site, markdown, success, news_date}]` |
 
 Converte cada URL em Markdown estruturado (título `#`, subtítulo `##`, autor, data, corpo).
 O Markdown bruto não possui frontmatter — é a matéria-prima para a etapa seguinte.
 
-**Persistência:** cada URL processada gera uma linha em `PIPELINE_PROC_NEWS`
-([`sqlite_storage.py`](../backend/src/adapters/storage/sqlite_storage.py)).
+**Contrato de entrada** (value object `NewsLinksByDate`,
+[`news_links_by_date.py`](../backend/src/domain/value_objects/news_links_by_date.py)):
+
+```json
+{
+  "2026-11-03": [
+    "https://g1.globo.com/economia/noticia/a.ghtml",
+    "https://www.infomoney.com.br/mercados/b/"
+  ],
+  "2026-11-04": [
+    "https://g1.globo.com/economia/noticia/c.ghtml",
+    "https://www.infomoney.com.br/mercados/d/"
+  ]
+}
+```
+
+Regras de validação (violação → `ValueError`; a API responde **422** e a etapa retorna `FAILED`
+com a mensagem): a chave é uma data ISO `YYYY-MM-DD` válida e **não futura**; o valor é uma lista;
+cada item é uma string não vazia; uma URL aparece em **uma única** data; a raiz é um objeto.
+Normalização: URLs são aparadas, repetidas na mesma data são colapsadas e datas com lista vazia
+são ignoradas. Os formatos de lista (lista plana, `{"links": [...]}`, string não-JSON) **não são
+mais aceitos**. Entrada vazia (`None`, `""`, `{}`) → `SUCCESS` com `news_markdowns: []`.
+
+Cada entrada de saída carrega o `news_date` (ISO) da sua chave, inclusive quando a conversão falha.
+
+**Persistência:** cada URL processada gera uma linha em `PIPELINE_PROC_NEWS`, com a data de
+publicação em `NEWS_DATE` ([`sqlite_storage.py`](../backend/src/adapters/storage/sqlite_storage.py)).
 
 ---
 
@@ -197,7 +222,10 @@ ativos. Os preços são `StockPrice` com `close_price`, `high_price`, `low_price
 
 **Consolidação de notícias:** para cada entrada em `news_markdowns`:
 1. Parseia frontmatter via `parse_frontmatter(markdown)` — extrai `title`, `url`, `date`, corpo.
-2. Parseia `date` no formato `DD-MM-AAAA` → `datetime`.
+2. Parseia `date` no formato `DD-MM-AAAA` → `datetime`. Se o frontmatter não trouxer data
+   (ou ela for inválida), usa o `news_date` (ISO) informado no upload como **fallback**; se as
+   duas existirem e divergirem, a data do frontmatter prevalece e um `warning` é registrado no log.
+   Sem nenhuma das duas, a notícia é descartada.
 3. Cria entidade `News(title, content, source, published_date, url)`.
 4. Chama `SentimentAnalyzerAdapter.analyze_sentiment(body)` → `SentimentScore ∈ {-1, 0, +1}`.
 5. Injeta o score via `news.set_sentiment(sentiment)`.
@@ -360,7 +388,7 @@ cada janela treina com todos os dados anteriores disponíveis.
 | Tabela | Conteúdo | Arquivo |
 |---|---|---|
 | `PIPELINE_PROC` | Registro de cada execução (uuid, timestamps) | [`sqlite_storage.py`](../backend/src/adapters/storage/sqlite_storage.py) |
-| `PIPELINE_PROC_NEWS` | URL × proc_id, status de conversão Docling | idem |
+| `PIPELINE_PROC_NEWS` | URL × proc_id, status de conversão Docling e data de publicação (`NEWS_DATE`, ISO); tabela com schema desatualizado é recriada na inicialização | idem |
 | `PIPELINE_TREATED_NEWS` | Markdown tratado completo (frontmatter + corpo) | idem |
 
 O campo `proc_id` (UUID v4 gerado em `DataPipeline.__init__`) vincula cada notícia tratada à
@@ -375,8 +403,8 @@ Cada etapa lê apenas as chaves que precisa e escreve novas chaves na saída.
 
 | Chave | Produzida por | Consumida por |
 |---|---|---|
-| `news_links` | Requisição HTTP | Etapa 0 |
-| `news_markdowns` | Etapa 0 → Etapa 1 (sobrescrita) | Etapa 1, 2 |
+| `news_links` (`Dict[date, List[str]]`) | Requisição HTTP | Etapa 0 |
+| `news_markdowns` (`{url, site, markdown, success, news_date}`) | Etapa 0 → Etapa 1 (sobrescrita, preserva `news_date`) | Etapa 1, 2 |
 | `discarded_news_urls` | Requisição HTTP | Etapa 1 |
 | `use_llm_treatment` | Requisição HTTP | Etapa 1 |
 | `pending_treatment_urls` | Etapa 1 (BLOCKED) | Frontend |

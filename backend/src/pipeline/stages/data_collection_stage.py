@@ -12,6 +12,9 @@ from src.domain.value_objects import TickerSymbol, DateRange
 from src.domain.models import News
 from src.domain.models.treated_news import parse_frontmatter
 from src.ports.data_source import DataSourcePort, NewsProcessorPort
+from app.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class DataCollectionStage(PipelineStage):
@@ -136,13 +139,12 @@ class DataCollectionStage(PipelineStage):
 
         title = meta.get("title", "").strip()
         url = meta.get("url") or entry.get("url", "")
-        date_str = meta.get("date", "")
         source = entry.get("site") or self._domain_from_url(url)
 
         if not title or not body:
             return None
 
-        published_date = self._parse_date(date_str)
+        published_date = self._resolve_published_date(meta, entry, url)
         if published_date is None:
             return None
 
@@ -163,6 +165,39 @@ class DataCollectionStage(PipelineStage):
                 news.set_sentiment(sentiment)
 
         return news
+
+    def _resolve_published_date(
+        self,
+        meta: Dict[str, str],
+        entry: Dict[str, Any],
+        url: str,
+    ) -> Optional[datetime]:
+        """Frontmatter date wins; fall back to the user-informed `news_date` (ISO)."""
+        from_frontmatter = self._parse_date(meta.get("date", ""))
+        from_user = self._parse_iso_date(entry.get("news_date"))
+
+        if from_frontmatter is None:
+            return from_user
+
+        if from_user is not None and from_user != from_frontmatter:
+            logger.warning(
+                "Data divergente em %s: frontmatter=%s, informada=%s (usando frontmatter)",
+                url,
+                from_frontmatter.date().isoformat(),
+                from_user.date().isoformat(),
+            )
+
+        return from_frontmatter
+
+    def _parse_iso_date(self, value: Optional[str]) -> Optional[datetime]:
+        """Parse YYYY-MM-DD string to datetime; returns None when absent or invalid."""
+        if not value:
+            return None
+
+        try:
+            return datetime.strptime(str(value).strip(), "%Y-%m-%d")
+        except ValueError:
+            return None
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """Parse DD-MM-AAAA string to datetime; returns None on failure."""

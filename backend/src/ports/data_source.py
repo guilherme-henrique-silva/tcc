@@ -99,12 +99,12 @@ class StoragePort(ABC):
 
     @abstractmethod
     def save_proc_news(self, record: ProcNewsRecord) -> None:
-        """Persist a PIPELINE_PROC_NEWS row for a processed link."""
+        """Persist a PIPELINE_PROC_NEWS row for a processed link (inclui a data de publicação)."""
         pass
 
     @abstractmethod
     def get_proc_news(self, url: str) -> Optional[ProcNewsRecord]:
-        """Retrieve a PIPELINE_PROC_NEWS record by URL, or None."""
+        """Retrieve a PIPELINE_PROC_NEWS record by URL (com a data de publicação), or None."""
         pass
 
     @abstractmethod

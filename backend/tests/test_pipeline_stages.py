@@ -8,6 +8,7 @@ from backend.src.pipeline.stages import (
     FeatureEngineeringStage,
     ConfoundingHandlerStage,
     NewsTreatmentStage,
+    DataCollectionStage,
 )
 
 
@@ -80,8 +81,77 @@ class TestPipelineStages:
         assert stage.substages() == [
             "selecionar_registros",
             "tratar_llm",
-            "persistir_tratados",
+            "verificar_conformidade",
         ]
+
+
+class _NoPricesSource:
+    """DataSource falso: sem preços, suficiente para exercitar a consolidação de notícias."""
+
+    def get_stock_prices(self, ticker, date_range):
+        return []
+
+
+def _treated_markdown(date_line):
+    """Markdown tratado com frontmatter; `date_line` vazio omite o campo `date`."""
+    lines = ["---", "title: Título", "subtitle: Sub", "url: https://g1/x"]
+    if date_line:
+        lines.append(f"date: {date_line}")
+    lines += ["---", "Corpo da notícia."]
+    return chr(10).join(lines)
+
+
+def _collect(markdown, news_date):
+    stage = DataCollectionStage(_NoPricesSource(), ["BBAS3.SA"])
+    entry = {
+        "url": "https://g1/x", "site": "G1", "markdown": markdown,
+        "success": True, "treated": True, "news_date": news_date,
+    }
+    result = stage.execute({
+        "date_range": {"start_date": datetime(2026, 1, 1), "end_date": datetime(2026, 12, 31)},
+        "news_markdowns": [entry],
+    })
+    assert result.status == "SUCCESS"
+    return result.data["news_items"]
+
+
+class TestDataCollectionPublishedDate:
+    """Data de publicação: frontmatter prevalece; `news_date` é fallback (Iteração 5)."""
+
+    def test_frontmatter_date_is_used(self):
+        items = _collect(_treated_markdown("10-06-2026"), "2026-06-10")
+
+        assert [n.published_date for n in items] == [datetime(2026, 6, 10)]
+
+    def test_news_date_is_fallback_when_frontmatter_has_no_date(self):
+        items = _collect(_treated_markdown(""), "2026-11-03")
+
+        assert [n.published_date for n in items] == [datetime(2026, 11, 3)]
+
+    def test_news_date_is_fallback_when_frontmatter_date_is_invalid(self):
+        items = _collect(_treated_markdown("não-é-data"), "2026-11-03")
+
+        assert [n.published_date for n in items] == [datetime(2026, 11, 3)]
+
+    def test_divergent_dates_use_frontmatter_and_log_warning(self, caplog):
+        with caplog.at_level("WARNING"):
+            items = _collect(_treated_markdown("10-06-2026"), "2026-11-03")
+
+        assert [n.published_date for n in items] == [datetime(2026, 6, 10)]
+        warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any(
+            "https://g1/x" in w and "2026-06-10" in w and "2026-11-03" in w
+            for w in warnings
+        )
+
+    def test_matching_dates_do_not_warn(self, caplog):
+        with caplog.at_level("WARNING"):
+            _collect(_treated_markdown("03-11-2026"), "2026-11-03")
+
+        assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+    def test_news_without_any_date_is_discarded(self):
+        assert _collect(_treated_markdown(""), None) == []
 
 
 if __name__ == "__main__":

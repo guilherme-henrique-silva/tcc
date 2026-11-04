@@ -45,7 +45,7 @@ STAGE_LABELS = {
 # Subetapas por etapa (espelha os substages do backend).
 SUBSTAGES = {
     "docling_transform": ["validar_links", "converter_markdown", "registrar_proc_news"],
-    "news_treatment": ["selecionar_registros", "tratar_llm", "persistir_tratados"],
+    "news_treatment": ["selecionar_registros", "tratar_llm", "verificar_conformidade"],
     "data_collection": ["coletar_precos", "consolidar_noticias"],
     "feature_engineering": ["features_acoes", "features_noticias", "features_concorrentes"],
     "confounding_handling": [

@@ -75,7 +75,7 @@ class DataPipeline:
         date_range_end,
         *,
         enabled_stages: Optional[Set[StageName]] = None,
-        news_links: Optional[List[str]] = None,
+        news_links: Optional[Dict[str, List[str]]] = None,
         news_file_path: str = None,
         use_llm_treatment: bool = False,
         treatment_model_path: Optional[str] = None,
@@ -87,7 +87,8 @@ class DataPipeline:
 
         Args:
             enabled_stages: set of StageName to run; None = run all stages.
-            news_links: list of news links for the Docling transform stage.
+            news_links: news links grouped by publication date (YYYY-MM-DD -> [urls])
+                for the Docling transform stage.
             on_substage: optional callback fired for each SubStageTag.
 
         Returns PipelineResult with per-stage SUCCESS/SKIPPED/FAILED status.
@@ -285,7 +286,7 @@ class DataPipeline:
         date_range_start,
         date_range_end,
         news_file_path: str,
-        news_links: Optional[List[str]],
+        news_links: Optional[Dict[str, List[str]]],
         use_llm_treatment: bool = False,
         treatment_model_path: Optional[str] = None,
         discarded_news_urls: Optional[List[str]] = None,
@@ -297,7 +298,7 @@ class DataPipeline:
                 "end_date": date_range_end,
             },
             "news_file_path": news_file_path,
-            "news_links": news_links or [],
+            "news_links": news_links or {},
             "pipeline_id": self.pipeline_id,
             "use_llm_treatment": use_llm_treatment,
             "treatment_model_path": treatment_model_path,

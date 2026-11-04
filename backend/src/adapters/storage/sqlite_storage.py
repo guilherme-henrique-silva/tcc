@@ -10,6 +10,12 @@ from src.ports.data_source import StoragePort
 from src.domain.models import ProcNewsRecord, PipelineProcRecord, TreatedNewsRecord
 
 
+# Colunas esperadas de PIPELINE_PROC_NEWS (usadas na verificação de schema desatualizado).
+_PROC_NEWS_COLUMNS = frozenset(
+    {"URL", "PROC_ID", "PROC_TS", "NM_SITE", "PROC_SUCCESS", "NEWS_DATE"}
+)
+
+
 class SQLiteStorage(StoragePort):
     """Adapter for persisting features to SQLite database."""
     
@@ -92,13 +98,15 @@ class SQLiteStorage(StoragePort):
 
             cursor.execute(
                 """
-                INSERT INTO PIPELINE_PROC_NEWS (URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO PIPELINE_PROC_NEWS
+                    (URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS, NEWS_DATE)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(URL) DO UPDATE SET
                     PROC_ID = excluded.PROC_ID,
                     PROC_TS = excluded.PROC_TS,
                     NM_SITE = excluded.NM_SITE,
-                    PROC_SUCCESS = excluded.PROC_SUCCESS
+                    PROC_SUCCESS = excluded.PROC_SUCCESS,
+                    NEWS_DATE = excluded.NEWS_DATE
                 """,
                 (
                     record.url,
@@ -106,6 +114,7 @@ class SQLiteStorage(StoragePort):
                     record.proc_ts.isoformat(),
                     record.site_name,
                     int(record.proc_success),
+                    record.news_date.isoformat() if record.news_date else None,
                 ),
             )
 
@@ -122,7 +131,7 @@ class SQLiteStorage(StoragePort):
             cursor = conn.cursor()
 
             cursor.execute(
-                "SELECT URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS "
+                "SELECT URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS, NEWS_DATE "
                 "FROM PIPELINE_PROC_NEWS WHERE URL = ?",
                 (url,),
             )
@@ -139,6 +148,7 @@ class SQLiteStorage(StoragePort):
                     "PROC_TS": row[2],
                     "NM_SITE": row[3],
                     "PROC_SUCCESS": row[4],
+                    "NEWS_DATE": row[5],
                 }
             )
 
@@ -327,42 +337,32 @@ class SQLiteStorage(StoragePort):
         """)
 
     def _create_proc_news_table(self, cursor) -> None:
-        """Create PIPELINE_PROC_NEWS with PROC_ID/PROC_TS, migrating legacy rows."""
+        """Create PIPELINE_PROC_NEWS, recreating it when the schema is outdated."""
+        self._reset_proc_news_if_outdated(cursor)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS PIPELINE_PROC_NEWS (
                 URL          TEXT      PRIMARY KEY,
                 PROC_ID      TEXT,
                 PROC_TS      TIMESTAMP NOT NULL,
                 NM_SITE      TEXT,
-                PROC_SUCCESS BOOLEAN   NOT NULL
+                PROC_SUCCESS BOOLEAN   NOT NULL,
+                NEWS_DATE    TEXT
             )
         """)
-        self._migrate_proc_news_schema(cursor)
 
-    def _migrate_proc_news_schema(self, cursor) -> None:
-        """Recreate the legacy schema (TS_PROC, sem PROC_ID) preservando dados (idempotente)."""
+    def _reset_proc_news_if_outdated(self, cursor) -> None:
+        """Drop PIPELINE_PROC_NEWS when its columns differ from the expected ones.
+
+        Sem dados de produção a preservar: tabela desatualizada é descartada e recriada
+        (idempotente — com o schema atual nada é alterado). Necessário porque os métodos
+        do adapter engolem sqlite3.Error e INSERTs num schema antigo falhariam em silêncio.
+        """
         columns = {row[1] for row in cursor.execute(
             "PRAGMA table_info(PIPELINE_PROC_NEWS)"
         ).fetchall()}
 
-        if "PROC_TS" in columns and "PROC_ID" in columns:
-            return  # já está no schema novo
-
-        cursor.execute("ALTER TABLE PIPELINE_PROC_NEWS RENAME TO PIPELINE_PROC_NEWS_OLD")
-        cursor.execute("""
-            CREATE TABLE PIPELINE_PROC_NEWS (
-                URL          TEXT      PRIMARY KEY,
-                PROC_ID      TEXT,
-                PROC_TS      TIMESTAMP NOT NULL,
-                NM_SITE      TEXT,
-                PROC_SUCCESS BOOLEAN   NOT NULL
-            )
-        """)
-        cursor.execute("""
-            INSERT INTO PIPELINE_PROC_NEWS (URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS)
-            SELECT URL, NULL, TS_PROC, NM_SITE, PROC_SUCCESS FROM PIPELINE_PROC_NEWS_OLD
-        """)
-        cursor.execute("DROP TABLE PIPELINE_PROC_NEWS_OLD")
+        if columns and columns != _PROC_NEWS_COLUMNS:
+            cursor.execute("DROP TABLE PIPELINE_PROC_NEWS")
 
     def _create_treated_news_table(self, cursor) -> None:
         """Create PIPELINE_TREATED_NEWS table for treated documents."""

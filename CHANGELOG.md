@@ -3,6 +3,64 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Não lançado] — Iteração 5
+
+Links de notícias agrupados por data de publicação: `news_links` deixa de ser uma lista plana e
+passa a ser um objeto *data (`YYYY-MM-DD`) → lista de links*, propagado por domínio, pipeline, API,
+base de dados, frontend, testes e documentação.
+
+```json
+{
+  "2026-11-03": [
+    "https://g1.globo.com/economia/noticia/a.ghtml",
+    "https://www.infomoney.com.br/mercados/b/"
+  ],
+  "2026-11-04": [
+    "https://g1.globo.com/economia/noticia/c.ghtml",
+    "https://www.infomoney.com.br/mercados/d/"
+  ]
+}
+```
+
+### Alterado
+- ⚠️ **Quebra de contrato de `news_links`** (R1, R2, R4): a etapa 0 (`DoclingTransformStage`) e
+  `POST /pipeline/execute` agora aceitam apenas o objeto *data → links*. Estrutura inválida deixa de
+  ser descartada em silêncio: a etapa retorna `FAILED` com a mensagem e a API responde **422**.
+- `DoclingTransformStage._extract_links`/`_parse_links_json` substituídos por
+  `_extract_dated_links`; cada item de `news_markdowns` (sucesso ou falha) traz `news_date` ISO.
+- `NewsTreatmentStage` repassa `news_date` nos caminhos de reuso, LLM e passthrough.
+- `DataCollectionStage`: a data do frontmatter (`DD-MM-AAAA`) prevalece; sem ela (ou inválida),
+  usa `news_date` como fallback em vez de descartar a notícia; datas divergentes geram `warning` no log.
+- `DataPipeline.execute`/`_create_initial_input`: `news_links` é `Dict[str, List[str]]` (default `{}`).
+- `PipelineExecuteRequest.news_links` é `Dict[str, List[str]]` com validador; `ProcNewsDTO` expõe `NEWS_DATE`.
+- ⚠️ **`PIPELINE_PROC_NEWS` recriada**: nova coluna `NEWS_DATE`. Tabela com schema desatualizado é
+  descartada (`DROP`) e recriada na inicialização, de forma idempotente — **dados antigos não são
+  preservados** (o projeto ainda não possui dados de produção).
+- Frontend: Upload de Dados com data de publicação + links por grupo, Executar Pipeline com resumo
+  "N link(s) em D data(s)" e Tratamento de Notícias com a data no rótulo de cada registro.
+
+### Adicionado
+- Value object `NewsLinksByDate` (`domain/value_objects/news_links_by_date.py`): validação e
+  normalização do objeto *data → links* (`from_raw`, `items`, `urls`, `dates_outside`, `to_dict`).
+- `ProcNewsRecord.news_date` e coluna `PIPELINE_PROC_NEWS.NEWS_DATE` (roundtrip `save`/`get`).
+- Frontend: `components/news_links.py` (helpers puros), importação de JSON (texto ou arquivo),
+  remoção por data/link, aviso não bloqueante de datas fora do período de análise, exibição da
+  `NEWS_DATE` já registrada na de-duplicação, aviso quando o `date` do frontmatter editado difere
+  da data informada e exibição do `detail` das respostas 422 da API (`api_error_message`).
+
+### Removido
+- Formatos legados de `news_links`: lista plana, string JSON com lista, `{"links": [...]}` e
+  string não-JSON tratada como link único.
+- `SQLiteStorage._migrate_proc_news_schema` (migração `TS_PROC` → `PROC_TS`), substituído por
+  `_reset_proc_news_if_outdated`.
+
+### Testes
+- Novos: `test_news_links_by_date.py` (value object e `PipelineExecuteRequest`),
+  `test_docling_transform_stage.py` (conversor fake, offline) e `frontend/tests/test_news_links.py`.
+- Revisados: `test_execution_persistence.py` (roundtrip com `news_date`; o teste de migração legada
+  deu lugar a testes de recriação idempotente), `test_news_treatment_stage.py`,
+  `test_pipeline_stages.py` (fallback de data) e `test_pipeline_orchestration.py`.
+
 ## [Não lançado] — Iteração 4 (R1–R9)
 
 Fechamento das lacunas de integração ponta a ponta: templates Docling corretos, auto-tratamento
