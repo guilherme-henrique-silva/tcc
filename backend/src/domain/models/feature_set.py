@@ -84,7 +84,9 @@ class StockFeatureSet(FeatureSet):
         """Return summary of stock-specific features."""
         summary = self.get_summary()
         summary["stock_features"] = {
-            "has_returns": "daily_return_pct" in self.feature_names,
+            "has_returns": any(
+                name in self.feature_names for name in ("log_return", "daily_return_pct")
+            ),
             "has_volatility": "volatility_20d" in self.feature_names,
             "has_anomalies": "anomaly_flag" in self.feature_names,
         }
@@ -103,8 +105,12 @@ class NewsFeatureSet(FeatureSet):
         """Return summary of news-specific features."""
         summary = self.get_summary()
         summary["news_features"] = {
-            "has_sentiment": "sentiment_score" in self.feature_names,
-            "has_frequency": "news_frequency" in self.feature_names,
+            "has_sentiment": any(
+                name in self.feature_names for name in ("sent_net", "sentiment_score")
+            ),
+            "has_frequency": any(
+                name in self.feature_names for name in ("n_news", "news_frequency")
+            ),
             "has_tfidf": any("tfidf" in name.lower() for name in self.feature_names),
         }
         return summary

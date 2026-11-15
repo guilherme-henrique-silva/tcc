@@ -1,7 +1,7 @@
 """Testes do value object NewsLinksByDate e da validação de news_links na API."""
 
 import json
-from datetime import date
+from datetime import date, time
 
 import pytest
 from pydantic import ValidationError
@@ -130,10 +130,10 @@ class TestNormalization:
         links = _build({"2026-11-04": [D, C], "2026-11-01": [B, A]})
 
         assert links.items() == [
-            (B, date(2026, 11, 1)),
-            (A, date(2026, 11, 1)),
-            (D, date(2026, 11, 4)),
-            (C, date(2026, 11, 4)),
+            (B, date(2026, 11, 1), None),
+            (A, date(2026, 11, 1), None),
+            (D, date(2026, 11, 4), None),
+            (C, date(2026, 11, 4), None),
         ]
         assert links.urls() == [B, A, D, C]
 
@@ -153,6 +153,83 @@ class TestNormalization:
         links.to_dict()["2026-11-03"].append("x")
 
         assert links.to_dict() == EXAMPLE
+
+
+class TestPublicationTime:
+    """Item como string (horário desconhecido) ou objeto {"url", "time"} (HH:MM, Brasília)."""
+
+    def test_string_item_has_unknown_time(self):
+        links = _build({"2026-11-03": [A]})
+
+        assert links.items() == [(A, date(2026, 11, 3), None)]
+        assert links.time_of(A) is None
+
+    def test_object_item_with_time(self):
+        links = _build({"2026-11-03": [{"url": A, "time": "18:42"}]})
+
+        assert links.items() == [(A, date(2026, 11, 3), time(18, 42))]
+        assert links.time_of(A) == time(18, 42)
+
+    def test_object_item_without_time_is_allowed(self):
+        links = _build({"2026-11-03": [{"url": A}]})
+
+        assert links.items() == [(A, date(2026, 11, 3), None)]
+
+    def test_null_time_is_unknown(self):
+        links = _build({"2026-11-03": [{"url": A, "time": None}]})
+
+        assert links.time_of(A) is None
+
+    def test_mixed_formats_in_the_same_date(self):
+        links = _build({"2026-11-03": [A, {"url": B, "time": "09:05"}]})
+
+        assert links.items() == [
+            (A, date(2026, 11, 3), None),
+            (B, date(2026, 11, 3), time(9, 5)),
+        ]
+
+    def test_time_of_unknown_url_is_none(self):
+        assert _build({"2026-11-03": [A]}).time_of(B) is None
+
+    @pytest.mark.parametrize("bad", ["7:5", "25:00", "12:60", "18h42", "18:42:10", "", 1842])
+    def test_invalid_time_raises_naming_date_and_url(self, bad):
+        with pytest.raises(ValueError) as exc:
+            _build({"2026-11-03": [{"url": A, "time": bad}]})
+
+        assert "2026-11-03" in str(exc.value)
+        assert A in str(exc.value)
+
+    def test_unknown_key_in_object_raises(self):
+        with pytest.raises(ValueError, match="desconhecida"):
+            _build({"2026-11-03": [{"url": A, "hora": "10:00"}]})
+
+    def test_object_without_url_raises(self):
+        with pytest.raises(ValueError, match="url"):
+            _build({"2026-11-03": [{"time": "10:00"}]})
+
+    def test_round_trip_through_to_dict(self):
+        raw = {"2026-11-03": [A, {"url": B, "time": "18:42"}], "2026-11-04": [C]}
+        links = _build(raw)
+
+        assert links.to_dict() == raw
+        assert _build(links.to_dict()) == links
+
+    def test_json_string_with_objects(self):
+        raw = {"2026-11-03": [{"url": A, "time": "18:42"}]}
+
+        assert _build(json.dumps(raw)).to_dict() == raw
+
+    def test_url_in_two_dates_still_rejected_with_objects(self):
+        with pytest.raises(ValueError, match="mais de uma data"):
+            _build({
+                "2026-11-03": [{"url": A, "time": "10:00"}],
+                "2026-11-04": [A],
+            })
+
+    def test_repeated_url_keeps_known_time(self):
+        links = _build({"2026-11-03": [A, {"url": A, "time": "10:00"}]})
+
+        assert links.items() == [(A, date(2026, 11, 3), time(10, 0))]
 
 
 class TestDatesOutside:
@@ -212,6 +289,15 @@ class TestExecuteRequestSchema:
     def test_flat_list_rejected(self):
         with pytest.raises(ValidationError, match="objeto JSON"):
             self._request([A, B])
+
+    def test_accepts_object_items_with_time(self):
+        request = self._request({"2026-11-03": [A, {"url": B, "time": "18:42"}]})
+
+        assert request.news_links == {"2026-11-03": [A, {"url": B, "time": "18:42"}]}
+
+    def test_invalid_time_rejected(self):
+        with pytest.raises(ValidationError, match="25:10"):
+            self._request({"2026-11-03": [{"url": A, "time": "25:10"}]})
 
     def test_proc_news_dto_exposes_news_date(self):
         from app.api.schemas.pipeline_schema import ProcNewsDTO

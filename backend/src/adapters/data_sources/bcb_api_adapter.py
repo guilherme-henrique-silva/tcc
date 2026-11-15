@@ -70,6 +70,15 @@ class BcbApiAdapter:
 
         return PtaxResponseDTO(value=all_cotacoes)
 
+    def dolar_dataframe(self, date_range: Optional[DateRange] = None) -> pd.DataFrame:
+        """Somente a PTAX (date/usd_brl_compra/usd_brl_venda), sem depender da Selic.
+
+        O endpoint devolve vários boletins por dia, em ordem cronológica; quem precisa
+        de um valor por dia deve ficar com o último (fechamento).
+        """
+        frame = self._dolar_to_dataframe(self.fetch_dolar(date_range))
+        return frame.sort_values("date", kind="stable").reset_index(drop=True)
+
     def to_dataframe(self, date_range: Optional[DateRange] = None) -> pd.DataFrame:
         """Normaliza Selic e dólar em DataFrame (date/selic/usd_brl_compra/usd_brl_venda)."""
         selic_df = self._selic_to_dataframe(self.fetch_selic(date_range))

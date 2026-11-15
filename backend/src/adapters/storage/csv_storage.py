@@ -53,10 +53,14 @@ class CsvStorage(StoragePort):
         except (OSError, IOError):
             pass
     
-    def save_granger_test_results(self, results: Dict) -> None:
+    def save_granger_test_results(
+        self,
+        results: Dict,
+        proc_id: Optional[str] = None,
+    ) -> None:
         """Save Granger test results to CSV."""
         try:
-            df = pd.DataFrame([results])
+            df = pd.DataFrame([{"proc_id": proc_id, **results}])
             output_path = self.base_path / "granger_results.csv"
             
             if output_path.exists():

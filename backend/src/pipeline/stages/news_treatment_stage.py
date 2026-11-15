@@ -170,6 +170,7 @@ class NewsTreatmentStage(PipelineStage):
             "success": True,
             "treated": treated,
             "news_date": entry.get("news_date"),
+            "news_time": entry.get("news_time"),
         }
 
     def _create_output_data(self, treated: List[Dict[str, Any]]) -> Dict[str, Any]:

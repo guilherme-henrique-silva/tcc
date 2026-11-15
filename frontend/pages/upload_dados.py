@@ -22,7 +22,16 @@ context_block(
     do Brasil e concorrentes), **agrupados pela data de publicação** (não pode ser futura,
     e a mesma URL só pode constar em uma data). Também é possível importar um JSON no
     formato `{"AAAA-MM-DD": ["link", ...]}`. Datas fora do período de análise geram apenas
-    um aviso. O **conteúdo de cada link** é convertido em **Markdown**
+    um aviso.
+
+    **Horário de publicação (opcional).** Notícias publicadas **depois do fechamento do
+    pregão** (17h por padrão) são atribuídas ao pregão seguinte, assim como as de fim de
+    semana e feriado. Para isso, informe o horário em `HH:MM`, 24h, **horário de Brasília**:
+    na digitação, escreva `18:42 https://...` (horário, espaço, link); no JSON, use
+    `{"url": "https://...", "time": "18:42"}`. Os dois formatos podem ser misturados, e
+    links **sem horário** continuam válidos (tratados como publicados durante o pregão).
+
+    O **conteúdo de cada link** é convertido em **Markdown**
     pelo Docling e segue para o tratamento e a engenharia de features. Aqui você também
     pode subir um CSV de notícias e conferir o intervalo de datas das ações (obtidas via
     yfinance).
@@ -39,8 +48,8 @@ tab_links, tab_csv, tab_acoes = st.tabs(["Links de Notícias", "Notícias (CSV)"
 with tab_links:
     st.subheader("Cole os links das notícias, agrupados por data de publicação")
 
-    # `news_links` é Dict[str, List[str]] (data ISO -> links); o widget do st_tags usa
-    # outra key para não sobrescrever o dicionário da sessão.
+    # `news_links` é Dict[str, List[str | {"url","time"}]] (data ISO -> links, com horário
+    # opcional); o widget do st_tags usa outra key para não sobrescrever o dicionário.
     if not isinstance(st.session_state.get("news_links"), dict):
         st.session_state["news_links"] = {}
     st.session_state.setdefault("news_links_nonce", 0)
@@ -58,7 +67,7 @@ with tab_links:
         )
     with col_links:
         typed_links = st_tags(
-            label="Links publicados nesta data",
+            label="Links publicados nesta data (opcional: HH:MM link, ex.: 18:42 https://...)",
             text="Pressione Enter para adicionar",
             value=[],
             key=f"news_links_input_{st.session_state['news_links_nonce']}",
@@ -73,7 +82,10 @@ with tab_links:
             st.error(str(e))
 
     with st.expander("📥 Importar JSON (data → links)"):
-        st.caption('Formato: `{"2026-11-03": ["https://...", "https://..."], "2026-11-04": ["https://..."]}`')
+        st.caption(
+            'Formato: `{"2026-11-03": ["https://...", {"url": "https://...", "time": "18:42"}], '
+            '"2026-11-04": ["https://..."]}` — `time` é opcional (HH:MM, horário de Brasília).'
+        )
         json_text = st.text_area("Cole o JSON", key="news_links_json_text", height=140)
         json_file = st.file_uploader("ou envie um arquivo .json", type="json", key="news_links_json_file")
 
@@ -82,8 +94,8 @@ with tab_links:
                 raw = json_file.getvalue().decode("utf-8") if json_file else json_text
                 imported = nl.parse_json(raw)
                 merged = groups
-                for day, urls in imported.items():
-                    merged = nl.add_group(merged, day, urls)
+                for day, items in imported.items():
+                    merged = nl.add_group(merged, day, items)
                 st.session_state["news_links"] = merged
                 st.rerun()
             except (ValueError, UnicodeDecodeError) as e:
@@ -91,7 +103,10 @@ with tab_links:
 
     if groups:
         total_links, total_days = nl.summary(groups)
-        st.caption(f"🔗 {total_links} link(s) em {total_days} data(s).")
+        st.caption(
+            f"🔗 {total_links} link(s) em {total_days} data(s) — "
+            f"{nl.timed_count(groups)} com horário de publicação informado."
+        )
 
         range_value = st.session_state.get("date_range") or get_date_range()
         for day in nl.dates_outside(groups, range_value[0], range_value[1]):
@@ -102,9 +117,10 @@ with tab_links:
 
         for day in sorted(groups):
             with st.expander(f"📅 {nl.to_br(day)} · {len(groups[day])} link(s)"):
-                for index, url in enumerate(groups[day]):
+                for index, item in enumerate(groups[day]):
+                    url, when = nl.url_of(item), nl.time_of(item)
                     col_url, col_rm = st.columns([6, 1])
-                    col_url.code(url, language=None)
+                    col_url.code(f"{when}  {url}" if when else url, language=None)
                     if col_rm.button("🗑️", key=f"rm_link_{day}_{index}", help="Remover link"):
                         st.session_state["news_links"] = nl.remove_link(groups, day, url)
                         st.rerun()
@@ -248,7 +264,10 @@ with tab_csv:
 # Aba 3 — Ações                                                                #
 # --------------------------------------------------------------------------- #
 with tab_acoes:
-    st.info("📊 Ações serão obtidas automaticamente via yfinance (BBAS3, ITUB4, BBDC4, SANB11)")
+    st.info(
+        "📊 Ações, Ibovespa e futuros de commodities serão obtidos automaticamente via yfinance "
+        "(BBAS3, ITUB4, BBDC4, SANB11, ^BVSP, ZS=F, ZC=F, LE=F)"
+    )
 
     today = date.today()
     default_start, default_end = get_date_range()

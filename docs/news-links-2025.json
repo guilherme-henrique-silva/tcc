@@ -1,0 +1,43 @@
+{
+    "news_links": {
+        "2025-01-05": [
+            {"url": "https://g1.globo.com/economia/noticia/2025/01/05/com-disparada-do-dolar-e-leiloes-do-bc-reservas-internacionais-do-brasil-caem-71percent-em-2024.ghtml", "time": "13:10"}
+        ],
+        "2025-01-08": [
+            "https://www.estadao.com.br/einvestidor/radar/10-bancos-pagamento-de-ipva-multas-de-transito-licenciamento/"
+        ],
+        "2025-01-10": [
+            "https://www.estadao.com.br/economia/bb-mantem-suspensao-consignado-inss-via-correspondente-mesmo-apos-elevacao-teto/"
+        ],
+        "2025-01-14": [
+            "https://www.metropoles.com/conteudo-especial/nova-gestao-da-anabb-em-defesa-do-banco-do-brasil-e-dos-funcionarios"
+        ],
+        "2025-01-20": [
+            "https://www.estadao.com.br/economia/coluna-do-broadcast-agro/banco-do-brasil-preve-recuperacao-do-agro-e-reforca-atuacao-no-setor/"
+        ],
+        "2025-01-21": [
+            "https://www.metropoles.com/negocios/itau-e-banco-do-brasil-estao-entre-500-marcas-mais-valiosas-do-mundo"
+        ],
+        "2025-01-22": [
+            "https://www.cnnbrasil.com.br/economia/money/negocios/itau-e-bb-estao-entre-as-500-marcas-mais-valiosas-do-mundo-diz-pesquisa/"
+        ],
+        "2025-01-23": [
+            "https://g1.globo.com/pi/piaui/noticia/2025/01/23/caixas-do-banco-do-brasil-fazem-manifestacao-e-adiam-servicos-por-duas-horas-nesta-quinta-23-no-piaui.ghtml",
+            "https://www.estadao.com.br/economia/ranking-marcas-mais-valiosas-do-mundo-2025-brasileiras-nprei/"
+        ],
+        "2025-01-24": [
+            "https://g1.globo.com/economia/noticia/2025/01/24/nubank-passa-o-itau-em-numero-de-clientes-e-se-torna-o-3o-maior-do-brasil.ghtml"
+        ],
+        "2025-01-27": [
+            "https://g1.globo.com/economia/noticia/2025/01/27/juro-bancario-tem-pequeno-aumento-em-2024-credito-acelera-e-inadimplencia-recua-revela-bc.ghtml"
+        ],
+        "2025-01-29": [
+            "https://www.cnnbrasil.com.br/economia/money/macroeconomia/lula-e-bancos-se-reunem-sobre-consignado-governo-quer-fgts-como-garantia/"
+        ],
+        "2025-01-31": [
+            "https://g1.globo.com/trabalho-e-carreira/concursos/noticia/2025/01/31/golpe-do-falso-concurso-entenda-o-crime-com-suposta-selecao-do-banco-do-brasil-e-saiba-como-se-proteger.ghtml",
+            "https://g1.globo.com/rn/rio-grande-do-norte/noticia/2025/01/31/emprestimos-consignados-bloqueados-servidores-rn.ghtml",
+            "https://www.estadao.com.br/economia/comprovante-pis-pasep-2025-o-que-e-como-emitir-e-para-que-serve-nprei/"
+        ]
+    }
+}

@@ -36,23 +36,36 @@ def _parse(value: str, fallback: date) -> date:
 STAGE_LABELS = {
     "docling_transform": "0 · Transformação Docling (links → Markdown)",
     "news_treatment": "1 · Tratamento de notícias (limpeza + frontmatter)",
-    "data_collection": "2 · Coleta de preços (yfinance)",
-    "feature_engineering": "3 · Engenharia de features",
-    "confounding_handling": "4 · Confundidores macroeconômicos",
-    "modeling_preparation": "5 · Preparação para modelagem",
+    "data_collection": "2 · Coleta de mercado (ações, Ibovespa, commodities)",
+    "feature_engineering": "3 · Engenharia de features (pregões da B3)",
+    "confounding_handling": "4 · Controles e dataset de análise",
+    "granger_causality": "5 · Causalidade de Granger (VAR)",
+    "modeling_preparation": "6 · Preparação para modelagem (exploratória)",
 }
 
 # Subetapas por etapa (espelha os substages do backend).
 SUBSTAGES = {
     "docling_transform": ["validar_links", "converter_markdown", "registrar_proc_news"],
     "news_treatment": ["selecionar_registros", "tratar_llm", "verificar_conformidade"],
-    "data_collection": ["coletar_precos", "consolidar_noticias"],
-    "feature_engineering": ["features_acoes", "features_noticias", "features_concorrentes"],
-    "confounding_handling": [
-        "coletar_selic",
-        "coletar_dolar",
+    "data_collection": [
+        "coletar_precos",
+        "coletar_indice",
         "coletar_commodities",
-        "teste_granger",
+        "consolidar_noticias",
+    ],
+    "feature_engineering": [
+        "calendario_pregoes",
+        "alinhar_noticias",
+        "features_acoes",
+        "features_noticias",
+        "features_concorrentes",
+    ],
+    "confounding_handling": ["coletar_dolar", "indicador_copom", "montar_dataset"],
+    "granger_causality": [
+        "estacionariedade",
+        "selecao_defasagens",
+        "testes_granger",
+        "diagnosticos",
     ],
     "modeling_preparation": [
         "dataset_nao_supervisionado",

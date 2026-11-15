@@ -1,5 +1,6 @@
 """YFinance Data Source Adapter."""
 
+from datetime import timedelta
 from typing import List
 import yfinance as yf
 import pandas as pd
@@ -7,6 +8,9 @@ import pandas as pd
 from src.domain.models import StockPrice
 from src.domain.value_objects import TickerSymbol, DateRange
 from src.ports.data_source import DataSourcePort
+from app.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class YFinanceAdapter(DataSourcePort):
@@ -36,9 +40,16 @@ class YFinanceAdapter(DataSourcePort):
                 return []
             
             stock_prices = self._convert_to_stock_prices(hist_df, ticker)
+            dropped = len(hist_df) - len(stock_prices)
+            if dropped:
+                logger.warning(
+                    "%s: %d linha(s) do yfinance descartada(s) por OHLC inconsistente",
+                    ticker, dropped,
+                )
             return stock_prices
-        
-        except Exception:
+
+        except Exception as exc:  # noqa: BLE001 — falha de rede/ticker não derruba a coleta
+            logger.warning("Falha ao baixar %s do yfinance: %s", ticker, exc)
             return []
     
     def get_news(self, date_range: DateRange) -> List:
@@ -50,8 +61,20 @@ class YFinanceAdapter(DataSourcePort):
         return []
     
     def _fetch_history(self, ticker_obj, start_date, end_date) -> pd.DataFrame:
-        """Fetch historical data from yfinance."""
-        return ticker_obj.history(start=start_date, end=end_date)
+        """Fetch historical data from yfinance.
+
+        ``Ticker.history()`` devolve preços **ajustados** (``auto_adjust=True`` é o padrão
+        do yfinance): ``Close`` já considera dividendos e desdobramentos. É o preço de
+        fechamento ajustado exigido pelo retorno logarítmico do TCC.
+
+        O ``end`` do yfinance é **exclusivo**; por isso pedimos ``end_date + 1 dia`` para
+        que o último dia do período (inclusivo no ``DateRange``) seja devolvido.
+        """
+        return ticker_obj.history(
+            start=start_date,
+            end=end_date + timedelta(days=1),
+            auto_adjust=True,
+        )
     
     def _convert_to_stock_prices(
         self,

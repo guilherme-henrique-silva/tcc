@@ -6,11 +6,19 @@ from src.domain.value_objects import SentimentScore
 from src.ports.data_source import NewsProcessorPort
 
 
+DEFAULT_MODEL = "nlptown/bert-base-multilingual-uncased-sentiment"
+
+
 class SentimentAnalyzerAdapter(NewsProcessorPort):
     """Adapter for sentiment analysis using transformers BERT model."""
-    
-    def __init__(self):
-        """Initialize sentiment analyzer."""
+
+    def __init__(self, model_name: Optional[str] = None):
+        """Initialize sentiment analyzer.
+
+        ``model_name`` permite trocar o modelo (ex.: um FinBERT-PT-BR) para a análise de
+        robustez; o padrão é o modelo multilíngue usado na pipeline.
+        """
+        self.model_name = model_name or DEFAULT_MODEL
         self.model = self._load_model()
     
     def analyze_sentiment(self, text: str) -> Optional[SentimentScore]:
@@ -43,11 +51,8 @@ class SentimentAnalyzerAdapter(NewsProcessorPort):
         try:
             from transformers import pipeline
             
-            # Using multilingual BERT for Portuguese
-            return pipeline(
-                "sentiment-analysis",
-                model="nlptown/bert-base-multilingual-uncased-sentiment",
-            )
+            # Multilingual BERT for Portuguese by default
+            return pipeline("sentiment-analysis", model=self.model_name)
         
         except ImportError:
             return None

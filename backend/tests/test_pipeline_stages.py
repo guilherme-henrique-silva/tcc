@@ -86,10 +86,12 @@ class TestPipelineStages:
 
 
 class _NoPricesSource:
-    """DataSource falso: sem preços, suficiente para exercitar a consolidação de notícias."""
+    """DataSource falso com uma única cotação por ticker (alvo e índice são obrigatórios)."""
 
     def get_stock_prices(self, ticker, date_range):
-        return []
+        from backend.src.domain.models import StockPrice
+
+        return [StockPrice(ticker, datetime(2026, 1, 2), 10.0, 10.0, 10.0, 10.0, 100)]
 
 
 def _treated_markdown(date_line):

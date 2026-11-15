@@ -13,6 +13,7 @@ from app.api.schemas import (
     PipelineRunResponse,
     StageResultDTO,
     ProcNewsDTO,
+    GrangerReportResponse,
     ConvertLinkRequest,
     ConvertLinkResponse,
     TreatNewsRequest,
@@ -87,6 +88,18 @@ async def get_proc_news(url: str):
         return None
 
     return ProcNewsDTO(**record.to_dict())
+
+
+@router.get("/granger_report", response_model=GrangerReportResponse)
+async def get_granger_report(proc_id: Optional[str] = None):
+    """Return the stored Granger report (latest run when ``proc_id`` is omitted).
+
+    Lê de `granger_results`; nada é recalculado.
+    """
+    report = _container.get_storage().get_granger_results(proc_id)
+
+    resolved = proc_id or (report or {}).get("proc_id")
+    return GrangerReportResponse(proc_id=resolved, report=report)
 
 
 @router.post("/convert_link", response_model=ConvertLinkResponse)

@@ -1,7 +1,7 @@
 """News Entity - Represents a news article."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time
 from typing import Optional, List
 
 from ..value_objects import SentimentScore
@@ -16,12 +16,15 @@ class News:
         title: News headline
         content: News body/content
         source: News source (G1, UOL, CNN Brasil, etc)
-        published_date: Publication date
+        published_date: Publication date (datetime at midnight; the time of day
+            lives in ``published_time``)
         url: Source URL
         sentiment_score: Optional sentiment analysis result
         entities: Optional extracted named entities
+        published_time: Optional publication time (Brasília), informed in the
+            input links JSON; None when unknown
     """
-    
+
     title: str
     content: str
     source: str
@@ -29,6 +32,7 @@ class News:
     url: str
     sentiment_score: Optional[SentimentScore] = None
     entities: List[str] = field(default_factory=list)
+    published_time: Optional[time] = None
     
     def __post_init__(self):
         """Validate news data."""

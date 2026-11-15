@@ -1,19 +1,38 @@
-"""Confounding Handler Service — variáveis de controle macroeconômicas."""
+"""Confounding Handler Service — variáveis de controle e dataset de análise por pregão.
 
+Os controles entram **sempre** no modelo, sem filtro por p-valor (decisão do TCC):
+Ibovespa, concorrentes, variação do USD/BRL, commodities agrícolas e indicador do Copom.
+O teste de Granger propriamente dito vive em ``GrangerCausalityService``.
+"""
+
+from bisect import bisect_right
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
+from datetime import date, datetime
+from typing import Dict, List, Optional, Sequence, Tuple
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, date
 
-from src.domain.value_objects import DateRange, PercentageChange
+from src.domain.models import StockPrice
+from src.domain.services.feature_engineering_service import log_returns_on_sessions
+from src.domain.value_objects import DateRange
 from src.adapters.data_sources.bcb_api_adapter import BcbApiAdapter
+
+NEWS_COLUMNS = ["n_news", "n_pos", "n_neg", "n_neu", "sent_net", "has_news"]
+TARGET_COLUMNS = [
+    "log_return",
+    "abs_return",
+    "daily_return_pct",
+    "volatility_20d",
+    "volume_normalized",
+    "anomaly_flag",
+]
 
 
 @dataclass(frozen=True)
 class MacroeconomicIndicator:
     """Represents a macroeconomic indicator value."""
-    
+
     indicator_name: str
     date: datetime
     value: float
@@ -22,241 +41,152 @@ class MacroeconomicIndicator:
     metadata: Optional[Dict] = None
 
 
-@dataclass(frozen=True)
-class GrangerTestResult:
-    """Encapsulates Granger causality test results."""
-    
-    p_value: float
-    test_statistic: float
-    lag: int
-    is_significant: bool
-    interpretation: str
-
-
 class ConfoundingHandlerService:
-    """Service for handling confounding variables and causality testing."""
-    
-    SIGNIFICANCE_LEVEL = 0.05
+    """Builds the fixed control variables and assembles the analysis dataset."""
 
-    def __init__(self, bcb_adapter: Optional[BcbApiAdapter] = None):
-        """Initialize service with the Banco Central data adapter."""
+    def __init__(
+        self,
+        bcb_adapter: Optional[BcbApiAdapter] = None,
+        copom_decision_dates: Optional[Sequence[object]] = None,
+    ):
+        """Initialize service with the Banco Central adapter and the Copom calendar."""
         self.bcb_adapter = bcb_adapter or BcbApiAdapter()
+        self.copom_decision_dates = parse_dates(copom_decision_dates or [])
 
-    def get_control_variables(
-        self,
-        date_range: DateRange,
-    ) -> pd.DataFrame:
-        """Retrieve control variables (Selic, USD/BRL, commodities) for date range."""
-        selic_data = self._load_selic_data(date_range)
-        usd_brl_data = self._load_usd_brl_data(date_range)
-        commodity_data = self._load_commodity_data(date_range)
+    # ------------------------------------------------------------------ #
+    # Controles                                                           #
+    # ------------------------------------------------------------------ #
+    def usd_brl_control(self, sessions: Sequence[date]) -> pd.Series:
+        """``d_usdbrl`` = ln(PTAX_t) − ln(PTAX_{t-1}) (PTAX de venda), por pregão.
 
-        control_df = self._merge_control_variables(selic_data, usd_brl_data, commodity_data)
-        return control_df
-    
-    def apply_granger_test(
-        self,
-        sentiment: np.ndarray,
-        prices: np.ndarray,
-        lag: int = 3,
-    ) -> GrangerTestResult:
+        A PTAX é repetida (*forward-fill*) nos pregões sem cotação **antes** de tirar a
+        diferença. A API devolve vários boletins por dia; vale o último (fechamento).
         """
-        Apply Granger causality test to validate if sentiment causes prices.
-        
-        H0: Sentiment does not Granger-cause prices
-        Rejects if p_value < 0.05
-        """
-        if not self._is_valid_granger_input(sentiment, prices):
-            return self._create_invalid_granger_result()
-        
-        aligned_sentiment, aligned_prices = self._align_time_series(sentiment, prices)
-        test_statistic, p_value = self._compute_granger_statistic(
-            aligned_sentiment,
-            aligned_prices,
-            lag
+        ordered = sorted(set(sessions))
+        date_range = DateRange(ordered[0], ordered[-1])
+        frame = self.bcb_adapter.dolar_dataframe(date_range)
+
+        daily = (
+            frame.dropna(subset=["usd_brl_venda"])
+            .groupby("date")["usd_brl_venda"]
+            .last()
+            .astype(float)
         )
-        
-        is_significant = p_value < self.SIGNIFICANCE_LEVEL
-        interpretation = self._create_granger_interpretation(is_significant, p_value)
-        
-        return GrangerTestResult(
-            p_value=p_value,
-            test_statistic=test_statistic,
-            lag=lag,
-            is_significant=is_significant,
-            interpretation=interpretation,
-        )
-    
-    def _load_selic_data(self, date_range: DateRange) -> pd.DataFrame:
-        """Load Selic (SGS 11) data from the Banco Central API."""
-        records = self.bcb_adapter.fetch_selic()
 
-        rows = [
-            {
-                "date": datetime.strptime(record.data, "%d/%m/%Y").date(),
-                "selic": float(record.valor),
-            }
-            for record in records
-        ]
-        df = pd.DataFrame(rows, columns=["date", "selic"])
-        return self._filter_by_range(df, date_range)
+        if daily.empty:
+            raise ValueError("A API do Banco Central não devolveu PTAX no período.")
 
-    def _load_usd_brl_data(self, date_range: DateRange) -> pd.DataFrame:
-        """Load USD/BRL (PTAX) data from the Banco Central API."""
-        response = self.bcb_adapter.fetch_dolar()
+        index = pd.Index(ordered, name="date")
+        union = daily.index.union(index)
+        on_sessions = daily.reindex(union).ffill().reindex(index).bfill()
 
-        rows = [
-            {
-                "date": datetime.fromisoformat(cotacao.data_hora_cotacao).date(),
-                "usd_brl": cotacao.cotacao_venda,
-            }
-            for cotacao in response.value
-        ]
-        df = pd.DataFrame(rows, columns=["date", "usd_brl"])
-        return self._filter_by_range(df, date_range)
+        return np.log(on_sessions).diff().rename("d_usdbrl")
 
-    def _filter_by_range(self, df: pd.DataFrame, date_range: DateRange) -> pd.DataFrame:
-        """Keep only rows inside the requested date range."""
-        if df.empty:
-            return df
-
-        mask = df["date"].apply(date_range.contains)
-        return df[mask].reset_index(drop=True)
-    
-    def _load_commodity_data(self, date_range: DateRange) -> pd.DataFrame:
-        """Load commodity prices (soja, milho, boi)."""
-        # TODO: Integrate with commodity data provider
-        return pd.DataFrame({
-            "date": self._generate_business_days(date_range),
-            "soja_price": self._generate_mock_commodity_values(date_range),
-            "milho_price": self._generate_mock_commodity_values(date_range),
-            "boi_price": self._generate_mock_commodity_values(date_range),
-        })
-    
-    def _merge_control_variables(
+    def commodity_control(
         self,
-        selic_df: pd.DataFrame,
-        usd_brl_df: pd.DataFrame,
-        commodity_df: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """Merge all control variables on date."""
-        merged = selic_df.merge(usd_brl_df, on="date", how="outer")
-        merged = merged.merge(commodity_df, on="date", how="outer")
-        merged = merged.sort_values("date").reset_index(drop=True)
-        
-        return merged
-    
-    def _is_valid_granger_input(
-        self,
-        sentiment: np.ndarray,
-        prices: np.ndarray,
-    ) -> bool:
-        """Validate Granger test inputs."""
-        if not isinstance(sentiment, np.ndarray):
-            return False
-        
-        if not isinstance(prices, np.ndarray):
-            return False
-        
-        if len(sentiment) != len(prices):
-            return False
-        
-        if len(sentiment) < 10:
-            return False
-        
-        return True
-    
-    def _create_invalid_granger_result(self) -> GrangerTestResult:
-        """Create invalid result for bad inputs."""
-        return GrangerTestResult(
-            p_value=1.0,
-            test_statistic=0.0,
-            lag=0,
-            is_significant=False,
-            interpretation="Input data invalid for Granger test",
-        )
-    
-    def _align_time_series(
-        self,
-        sentiment: np.ndarray,
-        prices: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Align time series lengths."""
-        min_length = min(len(sentiment), len(prices))
-        return sentiment[:min_length], prices[:min_length]
-    
-    def _compute_granger_statistic(
-        self,
-        sentiment: np.ndarray,
-        prices: np.ndarray,
-        lag: int,
-    ) -> Tuple[float, float]:
+        commodity_prices: Dict[str, Sequence[StockPrice]],
+        sessions: Sequence[date],
+    ) -> Optional[pd.Series]:
+        """``ret_commod`` = média simples dos log-retornos dos futuros, nos pregões da B3.
+
+        Preços são alinhados aos pregões com *forward-fill* (bolsa americana fechada).
+        Devolve None quando não há nenhuma commodity.
         """
-        Compute Granger causality statistic using OLS regression.
-        
-        Simplified implementation: F-statistic from restricted vs unrestricted models
-        """
-        # Remove NaN values
-        valid_mask = ~(np.isnan(sentiment) | np.isnan(prices))
-        sentiment_clean = sentiment[valid_mask]
-        prices_clean = prices[valid_mask]
-        
-        if len(sentiment_clean) < lag + 2:
-            return 0.0, 1.0
-        
-        # Build lagged matrices
-        max_lag = min(lag, len(sentiment_clean) // 3)
-        
-        if max_lag < 1:
-            return 0.0, 1.0
-        
-        # Simplified F-statistic (mock calculation)
-        # In production, use statsmodels.tsa.stattools.grangercausalitytests
-        test_statistic = self._calculate_f_statistic(sentiment_clean, prices_clean, max_lag)
-        p_value = self._f_statistic_to_p_value(test_statistic, max_lag)
-        
-        return test_statistic, p_value
-    
-    def _calculate_f_statistic(
-        self,
-        sentiment: np.ndarray,
-        prices: np.ndarray,
-        lag: int,
-    ) -> float:
-        """Calculate F-statistic for Granger test."""
-        # Compute correlation as proxy for causality
-        correlation = float(np.corrcoef(sentiment, prices)[0, 1])
-        
-        # Convert correlation to test statistic
-        n = len(sentiment)
-        t_stat = correlation * np.sqrt(n - 2) / np.sqrt(1 - correlation**2 + 1e-10)
-        
-        return float(t_stat)
-    
-    def _f_statistic_to_p_value(self, f_stat: float, df: int) -> float:
-        """Convert F-statistic to p-value."""
-        # Simplified: use normal approximation
-        # In production, use scipy.stats.f.sf()
-        p_value = 1.0 / (1.0 + abs(f_stat))
-        return min(1.0, max(0.0, p_value))
-    
-    def _create_granger_interpretation(self, is_significant: bool, p_value: float) -> str:
-        """Create human-readable interpretation."""
-        if is_significant:
-            return f"Sentiment Granger-causes prices (p={p_value:.4f}, reject H0)"
-        
-        return f"No causal relationship detected (p={p_value:.4f}, fail to reject H0)"
-    
-    def _generate_business_days(self, date_range: DateRange) -> List[date]:
-        """Generate business day dates for range."""
-        # TODO: Filter weekends and holidays
-        start = date_range.start_date
-        end = date_range.end_date
-        days = pd.date_range(start, end, freq="D")
+        returns = {
+            ticker: log_returns_on_sessions(prices, sessions)
+            for ticker, prices in commodity_prices.items()
+            if prices
+        }
 
-        return [d.date() for d in days]
-    
-    def _generate_mock_commodity_values(self, date_range: DateRange) -> List[float]:
-        """Generate mock commodity prices."""
-        days_count = date_range.days_count
-        return np.random.uniform(100.0, 500.0, days_count).tolist()
+        if not returns:
+            return None
+
+        return pd.DataFrame(returns).mean(axis=1).rename("ret_commod")
+
+    def copom_indicator(self, sessions: Sequence[date]) -> pd.Series:
+        """``copom`` = 1 no primeiro pregão **estritamente posterior** a cada decisão.
+
+        O comunicado sai depois do fechamento da B3; por isso o dia do anúncio não conta.
+        """
+        ordered = sorted(set(sessions))
+        flags = pd.Series(0, index=pd.Index(ordered, name="date"), dtype=int, name="copom")
+
+        for decision in self.copom_decision_dates:
+            position = bisect_right(ordered, decision)
+            if position < len(ordered):
+                flags.iloc[position] = 1
+
+        return flags
+
+    # ------------------------------------------------------------------ #
+    # Dataset de análise                                                  #
+    # ------------------------------------------------------------------ #
+    def build_analysis_dataset(
+        self,
+        target_features: pd.DataFrame,
+        news_features: pd.DataFrame,
+        controls: Dict[str, pd.Series],
+    ) -> Tuple[pd.DataFrame, List[str]]:
+        """Junta, por pregão, alvo + notícias + controles (contrato do §5 da spec).
+
+        Descarta a primeira linha (retornos NaN). Devolve ``(dataset, avisos)``; uma
+        linha por pregão menos uma, ordenada por ``date`` e sem NaN nas colunas
+        obrigatórias.
+        """
+        warnings: List[str] = []
+        frame = self._base_frame(target_features, news_features)
+
+        for name, series in controls.items():
+            frame[name] = frame["date"].map(series.to_dict()).astype(float)
+
+        frame = frame.iloc[1:].reset_index(drop=True)
+        required = ["log_return", *NEWS_COLUMNS, *controls.keys()]
+        incomplete = int(frame[required].isna().any(axis=1).sum())
+
+        if incomplete:
+            warnings.append(
+                f"{incomplete} pregão(ões) removido(s) do dataset por dados ausentes."
+            )
+            frame = frame.dropna(subset=required).reset_index(drop=True)
+
+        return frame, warnings
+
+    @staticmethod
+    def _base_frame(target_features: pd.DataFrame, news_features: pd.DataFrame) -> pd.DataFrame:
+        """Alvo à esquerda, notícias por pregão (zeros onde faltar linha)."""
+        target_cols = ["date"] + [c for c in TARGET_COLUMNS if c in target_features.columns]
+        frame = target_features[target_cols].copy().sort_values("date").reset_index(drop=True)
+
+        news = news_features if not news_features.empty else pd.DataFrame(columns=["date"])
+        frame = frame.merge(news, on="date", how="left")
+
+        for column in NEWS_COLUMNS:
+            if column not in frame.columns:
+                frame[column] = 0
+
+            frame[column] = frame[column].fillna(0)
+
+        for column in ("n_news", "n_pos", "n_neg", "n_neu", "has_news"):
+            frame[column] = frame[column].astype(int)
+
+        return frame
+
+
+def parse_dates(values: Sequence[object]) -> List[date]:
+    """Converte datas ISO (ou ``date``) em ``date``; ValueError cita o valor inválido."""
+    parsed: List[date] = []
+
+    for value in values:
+        if isinstance(value, datetime):
+            parsed.append(value.date())
+        elif isinstance(value, date):
+            parsed.append(value)
+        else:
+            try:
+                parsed.append(date.fromisoformat(str(value).strip()))
+            except ValueError as exc:
+                raise ValueError(
+                    f"Data inválida em COPOM_DECISION_DATES: '{value}' (use YYYY-MM-DD)."
+                ) from exc
+
+    return sorted(set(parsed))

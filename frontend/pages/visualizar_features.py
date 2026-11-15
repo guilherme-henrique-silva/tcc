@@ -13,18 +13,19 @@ context_block(
     """
     As features traduzem os dados brutos em sinais comparáveis:
 
-    - **Features de ações** — variação percentual diária, volatilidade (20 dias), volume
-      normalizado e detecção de anomalias (>2σ).
-    - **Features de notícias** — sentimento (+1/0/-1), frequência diária, TF-IDF reduzido
-      e reconhecimento de entidades (banco, governo, commodity).
-    - **Features + confundidores** — cruzam o sinal das notícias com Selic, dólar e
+    - **Features de ações** — retorno logarítmico diário, volatilidade (20 dias, só para
+      visualização), volume normalizado (apenas com dados passados) e anomalias (>2σ,
+      descritiva).
+    - **Features de notícias** — por pregão: sentimento líquido (Sₜ), volume (Nₜ) e
+      presença de notícias (Dₜ); TF-IDF reduzido e entidades (banco, governo, commodity).
+    - **Features + controles** — cruzam o sinal das notícias com Ibovespa, dólar e
       commodities, para separar efeito de notícia de contexto macroeconômico.
     """,
 )
 
 st.info("As features serão exibidas após a pipeline ser executada com sucesso.")
 
-tab1, tab2, tab3 = st.tabs(["Features de ações", "Features de notícias", "Features + confundidores"])
+tab1, tab2, tab3 = st.tabs(["Features de ações", "Features de notícias", "Features + controles"])
 
 with tab1:
     st.subheader("Features de ações")
@@ -65,8 +66,8 @@ with tab2:
     st.plotly_chart(fig, use_container_width=True)
 
 with tab3:
-    st.subheader("Features + confundidores")
-    st.write("Selic, USD/BRL, commodities")
+    st.subheader("Features + controles")
+    st.write("Ibovespa, concorrentes, variação do USD/BRL, commodities e Copom")
     
     # Placeholder correlation heatmap
     st.info("Heatmap de correlação será exibido aqui")

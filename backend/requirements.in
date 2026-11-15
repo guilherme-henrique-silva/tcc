@@ -11,6 +11,9 @@ pandas==2.1.4
 numpy==1.26.2
 scikit-learn==1.3.2
 statsmodels==0.14.0
+# statsmodels 0.14.0 importa scipy._lib._util._lazywhere, ausente em scipy recentes
+# (o import falha com scipy 1.16.3). Validado com 1.11.4; subir scipy exige subir statsmodels.
+scipy==1.11.4
 transformers==4.46.3
 torch==2.2.2
 huggingface-hub==0.26.2

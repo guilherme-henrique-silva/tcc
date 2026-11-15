@@ -105,9 +105,10 @@ pages = [
     st.Page("pages/executar_pipeline.py", title="2 · Executar Pipeline", icon="🚀"),
     st.Page("pages/tratamento_noticias.py", title="3 · Tratamento de Notícias", icon="🧹"),
     st.Page("pages/visualizar_features.py", title="4 · Visualizar Features", icon="📊"),
-    st.Page("pages/validacao_dados.py", title="5 · Validação de Dados", icon="✅"),
-    st.Page("pages/analise_exploratoria.py", title="6 · Análise Exploratória", icon="📈"),
-    st.Page("pages/timeline_bbas3.py", title="7 · Timeline BBAS3", icon="🕒"),
+    st.Page("pages/causalidade_granger.py", title="5 · Causalidade de Granger", icon="🔗"),
+    st.Page("pages/validacao_dados.py", title="6 · Validação de Dados", icon="✅"),
+    st.Page("pages/analise_exploratoria.py", title="7 · Análise Exploratória", icon="📈"),
+    st.Page("pages/timeline_bbas3.py", title="8 · Timeline BBAS3", icon="🕒"),
 ]
 
 st.navigation(pages).run()

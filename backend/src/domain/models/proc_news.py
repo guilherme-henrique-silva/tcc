@@ -1,7 +1,7 @@
 """ProcNewsRecord - registro de processamento de notícias (tabela PIPELINE_PROC_NEWS)."""
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Dict, Optional
 
 
@@ -15,6 +15,7 @@ class ProcNewsRecord:
     proc_success: bool                # sucesso/falha da conversão para Markdown
     proc_id: Optional[str] = None     # uuid da execução (FK lógica p/ PIPELINE_PROC_ID)
     news_date: Optional[date] = None  # data de publicação informada pelo usuário
+    news_time: Optional[time] = None  # horário de publicação (Brasília) informado, ou None
 
     def to_dict(self) -> Dict[str, object]:
         """Serializa o registro no formato das colunas da tabela."""
@@ -25,6 +26,7 @@ class ProcNewsRecord:
             "NM_SITE": self.site_name,
             "PROC_SUCCESS": self.proc_success,
             "NEWS_DATE": self.news_date.isoformat() if self.news_date else None,
+            "NEWS_TIME": self.news_time.strftime("%H:%M") if self.news_time else None,
         }
 
     @classmethod
@@ -32,6 +34,7 @@ class ProcNewsRecord:
         """Reconstrói o registro a partir de uma linha da tabela."""
         proc_id = row.get("PROC_ID")
         news_date = row.get("NEWS_DATE")
+        news_time = row.get("NEWS_TIME")
         return cls(
             url=str(row["URL"]),
             proc_ts=cls._parse_timestamp(row["PROC_TS"]),
@@ -39,6 +42,7 @@ class ProcNewsRecord:
             proc_success=bool(row["PROC_SUCCESS"]),
             proc_id=str(proc_id) if proc_id is not None else None,
             news_date=date.fromisoformat(str(news_date)) if news_date else None,
+            news_time=time.fromisoformat(str(news_time)) if news_time else None,
         )
 
     @staticmethod

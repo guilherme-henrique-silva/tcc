@@ -5,6 +5,7 @@ from .news_treatment_stage import NewsTreatmentStage
 from .data_collection_stage import DataCollectionStage
 from .feature_engineering_stage import FeatureEngineeringStage
 from .confounding_handling_stage import ConfoundingHandlerStage
+from .granger_causality_stage import GrangerCausalityStage
 from .modeling_preparation_stage import ModelingPreparationStage
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "DataCollectionStage",
     "FeatureEngineeringStage",
     "ConfoundingHandlerStage",
+    "GrangerCausalityStage",
     "ModelingPreparationStage",
 ]

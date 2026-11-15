@@ -1,7 +1,7 @@
 """Pydantic schemas for API request/response validation (DTOs)."""
 
 from datetime import date, datetime
-from typing import List, Optional, Dict, Literal
+from typing import Any, List, Optional, Dict, Literal, Union
 from pydantic import BaseModel, Field, field_validator
 
 from src.domain.value_objects import NewsLinksByDate
@@ -20,6 +20,7 @@ ALL_STAGE_NAMES = [
     "data_collection",
     "feature_engineering",
     "confounding_handling",
+    "granger_causality",
     "modeling_preparation",
 ]
 
@@ -35,9 +36,13 @@ class PipelineExecuteRequest(BaseModel):
         None,
         description="Stages to run (feature toggle). None = all stages enabled."
     )
-    news_links: Optional[Dict[str, List[str]]] = Field(
+    news_links: Optional[Dict[str, List[Union[str, Dict[str, str]]]]] = Field(
         None,
-        description="Links de notícias agrupados por data de publicação (YYYY-MM-DD)."
+        description=(
+            "Links de notícias agrupados por data de publicação (YYYY-MM-DD). Cada item "
+            "é uma URL (horário desconhecido) ou {\"url\": ..., \"time\": \"HH:MM\"} "
+            "(horário de Brasília)."
+        ),
     )
     use_llm_treatment: bool = Field(
         False,
@@ -54,7 +59,7 @@ class PipelineExecuteRequest(BaseModel):
 
     @field_validator("news_links", mode="before")
     @classmethod
-    def _validate_news_links(cls, value: object) -> Optional[Dict[str, List[str]]]:
+    def _validate_news_links(cls, value: object) -> Optional[Dict[str, list]]:
         """Valida/normaliza via NewsLinksByDate; ValueError vira HTTP 422 com a mensagem."""
         if value is None:
             return None
@@ -104,6 +109,7 @@ class ProcNewsDTO(BaseModel):
     NM_SITE: Optional[str] = None
     PROC_SUCCESS: bool
     NEWS_DATE: Optional[str] = None
+    NEWS_TIME: Optional[str] = None
 
 
 class ConvertLinkRequest(BaseModel):
@@ -169,6 +175,12 @@ class DownloadModelResponse(BaseModel):
     """DTO for the result of starting a model download."""
     model_path: str
     status: Literal["ready", "downloading", "download"]
+
+
+class GrangerReportResponse(BaseModel):
+    """DTO for the stored Granger report (read from granger_results, never recomputed)."""
+    proc_id: Optional[str] = None
+    report: Optional[Dict[str, Any]] = None
 
 
 class CheckpointResumeRequest(BaseModel):

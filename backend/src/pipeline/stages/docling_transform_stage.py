@@ -1,7 +1,7 @@
 """Docling Transform Stage - converte links de notícias em Markdown (etapa 0)."""
 
 from typing import Dict, Any, List, Optional
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from src.pipeline.pipeline_stage import (
     PipelineStage,
@@ -85,15 +85,25 @@ class DoclingTransformStage(PipelineStage):
         """Convert each link into Markdown, ignoring non-textual media."""
         results = []
 
-        for url, news_date in links.items():
-            results.append(self._convert_single(url, news_date))
+        for url, news_date, news_time in links.items():
+            results.append(self._convert_single(url, news_date, news_time))
 
         return results
 
-    def _convert_single(self, url: str, news_date: date) -> Dict[str, Any]:
-        """Convert one link, capturing success/failure per item."""
+    def _convert_single(
+        self,
+        url: str,
+        news_date: date,
+        news_time: Optional[time] = None,
+    ) -> Dict[str, Any]:
+        """Convert one link, capturing success/failure per item.
+
+        ``news_time`` ("HH:MM", Brasília) é propagado como veio do JSON de entrada;
+        ``None`` quando o horário não foi informado.
+        """
         site = self.converter.site_name(url)
         published = news_date.isoformat()
+        published_time = news_time.strftime("%H:%M") if news_time else None
 
         try:
             markdown = self.converter.to_markdown(url)
@@ -103,6 +113,7 @@ class DoclingTransformStage(PipelineStage):
                 "markdown": markdown,
                 "success": True,
                 "news_date": published,
+                "news_time": published_time,
             }
 
         except Exception as e:
@@ -113,6 +124,7 @@ class DoclingTransformStage(PipelineStage):
                 "success": False,
                 "error": str(e),
                 "news_date": published,
+                "news_time": published_time,
             }
 
     def _register_results(
@@ -132,6 +144,11 @@ class DoclingTransformStage(PipelineStage):
                 proc_success=entry["success"],
                 proc_id=pipeline_id,
                 news_date=date.fromisoformat(entry["news_date"]),
+                news_time=(
+                    time.fromisoformat(entry["news_time"])
+                    if entry.get("news_time")
+                    else None
+                ),
             )
             self.repo.save_proc_news(record)
 

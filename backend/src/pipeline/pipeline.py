@@ -16,6 +16,7 @@ from src.pipeline.stages import (
     DataCollectionStage,
     FeatureEngineeringStage,
     ConfoundingHandlerStage,
+    GrangerCausalityStage,
     ModelingPreparationStage,
 )
 from src.pipeline.dependency_container import DependencyContainer
@@ -33,6 +34,7 @@ class StageName(str, Enum):
     DATA_COLLECTION = "data_collection"
     FEATURE_ENGINEERING = "feature_engineering"
     CONFOUNDING_HANDLING = "confounding_handling"
+    GRANGER_CAUSALITY = "granger_causality"
     MODELING_PREPARATION = "modeling_preparation"
 
 
@@ -75,7 +77,7 @@ class DataPipeline:
         date_range_end,
         *,
         enabled_stages: Optional[Set[StageName]] = None,
-        news_links: Optional[Dict[str, List[str]]] = None,
+        news_links: Optional[Dict[str, list]] = None,
         news_file_path: str = None,
         use_llm_treatment: bool = False,
         treatment_model_path: Optional[str] = None,
@@ -87,8 +89,9 @@ class DataPipeline:
 
         Args:
             enabled_stages: set of StageName to run; None = run all stages.
-            news_links: news links grouped by publication date (YYYY-MM-DD -> [urls])
-                for the Docling transform stage.
+            news_links: news links grouped by publication date (YYYY-MM-DD -> items)
+                for the Docling transform stage; each item is a URL string or
+                {"url": ..., "time": "HH:MM"} (Brasília).
             on_substage: optional callback fired for each SubStageTag.
 
         Returns PipelineResult with per-stage SUCCESS/SKIPPED/FAILED status.
@@ -213,9 +216,10 @@ class DataPipeline:
         self.container.get_storage().finish_pipeline_proc(self.pipeline_id, end_time)
 
     def _initialize_stages(self) -> List:
-        """Initialize all pipeline stages, Docling as stage 0."""
+        """Initialize all pipeline stages, Docling as stage 0 (ordem: docs/PIPELINE.md)."""
         data_source = self.container.get_data_source()
         tickers = self._parse_tickers()
+        config = self.config
 
         stages = [
             DoclingTransformStage(
@@ -230,9 +234,25 @@ class DataPipeline:
                 data_source,
                 tickers,
                 self.container.get_sentiment_analyzer(),
+                target_ticker=config.TARGET_TICKER,
+                index_ticker=config.MARKET_INDEX_TICKER,
+                commodity_tickers=config.COMMODITY_TICKERS,
             ),
-            FeatureEngineeringStage(),
-            ConfoundingHandlerStage(),
+            FeatureEngineeringStage(
+                target_ticker=config.TARGET_TICKER,
+                market_close_time=config.MARKET_CLOSE_TIME,
+                peers_aggregation=config.PEERS_AGGREGATION,
+                volatility_window=config.VOLATILITY_WINDOW,
+                anomaly_std_threshold=config.ANOMALY_STD_THRESHOLD,
+            ),
+            ConfoundingHandlerStage(
+                self.container.get_bcb_adapter(),
+                config.COPOM_DECISION_DATES,
+            ),
+            GrangerCausalityStage(
+                self.container.get_storage(),
+                data_dir=config.DATA_DIR,
+            ),
             ModelingPreparationStage(),
         ]
 
@@ -286,7 +306,7 @@ class DataPipeline:
         date_range_start,
         date_range_end,
         news_file_path: str,
-        news_links: Optional[Dict[str, List[str]]],
+        news_links: Optional[Dict[str, list]],
         use_llm_treatment: bool = False,
         treatment_model_path: Optional[str] = None,
         discarded_news_urls: Optional[List[str]] = None,

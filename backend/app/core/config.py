@@ -42,11 +42,46 @@ class Config:
     # Logging
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-    # YFinance
+    # YFinance — alvo + concorrentes; índice e commodities têm variáveis próprias.
     YFINANCE_TICKERS = os.getenv(
         "YFINANCE_TICKERS",
         "BBAS3.SA,ITUB4.SA,BBDC4.SA,SANB11.SA"
     ).split(",")
+    TARGET_TICKER = os.getenv("TARGET_TICKER", "BBAS3.SA").strip()
+    MARKET_INDEX_TICKER = os.getenv("MARKET_INDEX_TICKER", "^BVSP").strip()
+    COMMODITY_TICKERS = [
+        t.strip()
+        for t in os.getenv("COMMODITY_TICKERS", "ZS=F,ZC=F,LE=F").split(",")
+        if t.strip()
+    ]
+
+    # Calendário de pregões e alinhamento das notícias
+    # Horário de corte (Brasília, HH:MM): notícia publicada depois vai ao pregão seguinte.
+    MARKET_CLOSE_TIME = os.getenv("MARKET_CLOSE_TIME", "17:00").strip()
+    # Datas de anúncio das decisões do Copom (dia do comunicado, ISO, separadas por vírgula).
+    # Padrão: 2025. CONFIRMAR no site do Banco Central antes de usar em produção.
+    COPOM_DECISION_DATES = [
+        d.strip()
+        for d in os.getenv(
+            "COPOM_DECISION_DATES",
+            "2025-01-29,2025-03-19,2025-05-07,2025-06-18,"
+            "2025-07-30,2025-09-17,2025-11-05,2025-12-10",
+        ).split(",")
+        if d.strip()
+    ]
+
+    # Concorrentes: "mean" (ret_peers) ou "separate" (uma coluna por ticker)
+    PEERS_AGGREGATION = os.getenv("PEERS_AGGREGATION", "mean").strip().lower()
+
+    # Teste de causalidade de Granger (VAR)
+    GRANGER_MAX_LAG = int(os.getenv("GRANGER_MAX_LAG", "10"))
+    GRANGER_IC = os.getenv("GRANGER_IC", "aic").strip().lower()              # aic|bic|hqic
+    GRANGER_ALPHA = float(os.getenv("GRANGER_ALPHA", "0.05"))
+    GRANGER_MULTITEST = os.getenv("GRANGER_MULTITEST", "holm").strip().lower()  # holm|fdr_bh
+    GRANGER_NEWS_SPEC = os.getenv("GRANGER_NEWS_SPEC", "net").strip().lower()   # net|split
+
+    # Modelo alternativo de sentimento (robustez, RF-15). Vazio = não usado.
+    SENTIMENT_MODEL_ROBUSTNESS = os.getenv("SENTIMENT_MODEL_ROBUSTNESS", "").strip()
 
     # Date range — lido do .env, sem default fixo de ano
     DATE_START = os.getenv("DATE_START")

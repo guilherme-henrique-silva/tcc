@@ -58,6 +58,19 @@ class APIClient:
         response.raise_for_status()
         return response.json()
     
+    def get_granger_report(self, proc_id: Optional[str] = None) -> Dict:
+        """Return the stored Granger report (latest run when ``proc_id`` is None).
+
+        Response: ``{"proc_id": ..., "report": {...} | None}``. Nada é recalculado.
+        """
+        response = requests.get(
+            f"{self.base_url}/api/pipeline/granger_report",
+            params={"proc_id": proc_id} if proc_id else None,
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json()
+
     def get_pipeline_status(self, job_id: str) -> Dict:
         """Get pipeline execution status."""
         response = requests.get(

@@ -1,7 +1,14 @@
 """Domain Services Module Initialization."""
 
 from .feature_engineering_service import FeatureEngineeringService, StockFeatures, NewsFeatures
-from .confounding_handler_service import ConfoundingHandlerService, MacroeconomicIndicator, GrangerTestResult
+from .confounding_handler_service import ConfoundingHandlerService, MacroeconomicIndicator
+from .granger_causality_service import (
+    GrangerCausalityService,
+    GrangerReport,
+    GrangerTest,
+    StationarityResult,
+    InsufficientDataError,
+)
 from .modeling_preparation_service import (
     ModelingPreparationService,
     UnsupervisedDataset,
@@ -15,7 +22,11 @@ __all__ = [
     "NewsFeatures",
     "ConfoundingHandlerService",
     "MacroeconomicIndicator",
-    "GrangerTestResult",
+    "GrangerCausalityService",
+    "GrangerReport",
+    "GrangerTest",
+    "StationarityResult",
+    "InsufficientDataError",
     "ModelingPreparationService",
     "UnsupervisedDataset",
     "SupervisedDataset",

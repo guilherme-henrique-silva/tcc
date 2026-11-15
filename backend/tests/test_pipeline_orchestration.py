@@ -19,9 +19,10 @@ class TestDataPipeline:
     def test_pipeline_initialization(self):
         """Test pipeline initializes with all stages."""
         assert self.pipeline is not None
-        # 6 stages: docling_transform + news_treatment + data_collection
-        # + feature_engineering + confounding_handling + modeling_preparation.
-        assert len(self.pipeline._stages) == 6
+        # 7 stages: docling_transform + news_treatment + data_collection
+        # + feature_engineering + confounding_handling + granger_causality
+        # + modeling_preparation.
+        assert len(self.pipeline._stages) == 7
         assert self.pipeline.pipeline_id is not None
 
     def test_pipeline_stage_order_includes_treatment(self):
@@ -34,9 +35,10 @@ class TestDataPipeline:
             "data_collection",
             "feature_engineering",
             "confounding_handling",
+            "granger_causality",
             "modeling_preparation",
         ]
-    
+
     def test_initial_input_news_links_defaults_to_empty_dict(self):
         """Sem links, a entrada da etapa 0 é um objeto vazio (data -> links)."""
         data = self.pipeline._create_initial_input(

@@ -32,27 +32,33 @@ context_block(
     ser feito via LLM ou manualmente na tela **Tratamento de Notícias** antes ou depois
     da execução. Pode ser pulada se as notícias já estiverem tratadas.
 
-    **2 · Coleta de preços** *(obrigatória)*
-    Busca via yfinance os preços históricos diários de BBAS3, ITUB4, BBDC4 e SANB11
-    para o período selecionado no sidebar, e consolida as notícias já processadas.
-    Esta etapa é a base para toda a engenharia de features.
+    **2 · Coleta de mercado** *(obrigatória)*
+    Busca via yfinance os preços **ajustados** diários de BBAS3 (alvo), ITUB4, BBDC4 e
+    SANB11 (concorrentes), do Ibovespa (`^BVSP`) e dos contratos futuros de commodities
+    agrícolas (soja, milho e boi gordo), e consolida as notícias já processadas.
 
     **3 · Engenharia de features** *(obrigatória — depende da etapa 2)*
-    Calcula variáveis numéricas a partir dos dados brutos: variação percentual e
-    volatilidade das ações (desvio padrão móvel de 20 dias), sentimento e frequência
-    diária das notícias, TF-IDF, reconhecimento de entidades e correlação móvel de 10
-    dias com concorrentes.
+    Define o **calendário de pregões da B3** (datas com cotação da BBAS3) e alinha cada
+    notícia a um pregão: fim de semana, feriado ou publicação **depois do fechamento**
+    vão para o pregão seguinte. Calcula o retorno logarítmico, o volume (Nₜ), o sentimento
+    líquido (Sₜ) e a presença de notícias (Dₜ) **por pregão**, e o retorno dos concorrentes.
 
-    **4 · Confundidores macroeconômicos** *(opcional)*
-    Coleta taxa Selic, cotação USD/BRL e commodities agrícolas via API do Banco Central
-    e aplica o Teste de Causalidade de Granger (p < 0,05). Essas variáveis de controle
-    separam o efeito das notícias de movimentos macroeconômicos sistêmicos. Pode ser
-    pulada se o foco for apenas nas features de notícias e ações.
+    **4 · Controles e dataset de análise** *(depende da etapa 3)*
+    Monta os **controles fixos** — Ibovespa, concorrentes, variação do USD/BRL (PTAX),
+    commodities e indicador de decisões do Copom — e o dataset de análise (uma linha por
+    pregão). Os controles entram **sempre**: não há seleção por p-valor.
 
-    **5 · Preparação para modelagem** *(obrigatória — depende das etapas 2 e 3)*
-    Monta os datasets finais: não supervisionado (para clustering/PCA), supervisionado
-    (para regressão/classificação) e os splits de walk-forward validation, garantindo
-    que o treino não "veja" dados futuros.
+    **5 · Causalidade de Granger** *(opcional — depende da etapa 4)*
+    Aplica o teste de Granger em um **VAR**: ADF/KPSS, defasagem por AIC/BIC (até 10
+    pregões), Toda-Yamamoto quando há série integrada, testes nos dois sentidos,
+    diagnósticos dos resíduos, erros robustos e correção de Holm/BH. O resultado é
+    **causalidade preditiva** (precedência temporal), não causalidade estrutural. Veja a
+    página *Causalidade de Granger*.
+
+    **6 · Preparação para modelagem** *(obrigatória — depende da etapa 3)*
+    Monta os datasets **exploratórios**: não supervisionado (clustering/PCA),
+    supervisionado (alvo: log-retorno) e os splits de walk-forward validation, garantindo
+    que o treino não "veja" dados futuros. Fica fora do teste de Granger.
     """,
 )
 
@@ -71,6 +77,8 @@ st.caption(
 _REQUIRES: dict[str, str] = {
     "news_treatment": "docling_transform",
     "feature_engineering": "data_collection",
+    "confounding_handling": "feature_engineering",
+    "granger_causality": "confounding_handling",
     "modeling_preparation": "feature_engineering",
 }
 
@@ -125,7 +133,10 @@ else:
 news_links = st.session_state.get("news_links") or {}
 if news_links:
     total_links, total_days = nl.summary(news_links)
-    st.caption(f"🔗 {total_links} link(s) em {total_days} data(s) na sessão.")
+    st.caption(
+        f"🔗 {total_links} link(s) em {total_days} data(s) na sessão "
+        f"({nl.timed_count(news_links)} com horário de publicação)."
+    )
 else:
     st.caption("ℹ️ Nenhum link de notícia na sessão (ver página *Upload de Dados*).")
 

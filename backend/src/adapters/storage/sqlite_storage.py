@@ -8,12 +8,15 @@ import pandas as pd
 
 from src.ports.data_source import StoragePort
 from src.domain.models import ProcNewsRecord, PipelineProcRecord, TreatedNewsRecord
+from app.core.logger import get_logger
 
 
 # Colunas esperadas de PIPELINE_PROC_NEWS (usadas na verificação de schema desatualizado).
 _PROC_NEWS_COLUMNS = frozenset(
-    {"URL", "PROC_ID", "PROC_TS", "NM_SITE", "PROC_SUCCESS", "NEWS_DATE"}
+    {"URL", "PROC_ID", "PROC_TS", "NM_SITE", "PROC_SUCCESS", "NEWS_DATE", "NEWS_TIME"}
 )
+
+logger = get_logger(__name__)
 
 
 class SQLiteStorage(StoragePort):
@@ -72,24 +75,57 @@ class SQLiteStorage(StoragePort):
         except sqlite3.Error:
             pass
     
-    def save_granger_test_results(self, results: Dict) -> None:
-        """Save Granger test results to SQLite."""
+    def save_granger_test_results(
+        self,
+        results: Dict,
+        proc_id: Optional[str] = None,
+    ) -> None:
+        """Save the Granger report (JSON) tagged with the execution's PROC_ID.
+
+        Falhas de gravação não são silenciadas: ficam registradas em nível ERROR.
+        """
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
-            
+
             results_json = json.dumps(results)
             cursor.execute(
-                "INSERT INTO granger_results (data) VALUES (?)",
-                (results_json,),
+                "INSERT INTO granger_results (data, PROC_ID) VALUES (?, ?)",
+                (results_json, proc_id),
             )
-            
+
             conn.commit()
             conn.close()
-        
-        except sqlite3.Error:
-            pass
-    
+
+        except (sqlite3.Error, TypeError, ValueError) as exc:
+            logger.error(
+                "Falha ao gravar o relatório de Granger (PROC_ID=%s): %s", proc_id, exc
+            )
+
+    def get_granger_results(self, proc_id: Optional[str] = None) -> Optional[Dict]:
+        """Return the stored Granger report for ``proc_id`` (latest run when None)."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            if proc_id:
+                cursor.execute(
+                    "SELECT data FROM granger_results WHERE PROC_ID = ? "
+                    "ORDER BY id DESC LIMIT 1",
+                    (proc_id,),
+                )
+            else:
+                cursor.execute("SELECT data FROM granger_results ORDER BY id DESC LIMIT 1")
+
+            row = cursor.fetchone()
+            conn.close()
+
+            return json.loads(row[0]) if row and row[0] else None
+
+        except (sqlite3.Error, ValueError) as exc:
+            logger.error("Falha ao ler o relatório de Granger (PROC_ID=%s): %s", proc_id, exc)
+            return None
+
     def save_proc_news(self, record: ProcNewsRecord) -> None:
         """Persist a Docling processing record."""
         try:
@@ -99,14 +135,15 @@ class SQLiteStorage(StoragePort):
             cursor.execute(
                 """
                 INSERT INTO PIPELINE_PROC_NEWS
-                    (URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS, NEWS_DATE)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS, NEWS_DATE, NEWS_TIME)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(URL) DO UPDATE SET
                     PROC_ID = excluded.PROC_ID,
                     PROC_TS = excluded.PROC_TS,
                     NM_SITE = excluded.NM_SITE,
                     PROC_SUCCESS = excluded.PROC_SUCCESS,
-                    NEWS_DATE = excluded.NEWS_DATE
+                    NEWS_DATE = excluded.NEWS_DATE,
+                    NEWS_TIME = excluded.NEWS_TIME
                 """,
                 (
                     record.url,
@@ -115,6 +152,7 @@ class SQLiteStorage(StoragePort):
                     record.site_name,
                     int(record.proc_success),
                     record.news_date.isoformat() if record.news_date else None,
+                    record.news_time.strftime("%H:%M") if record.news_time else None,
                 ),
             )
 
@@ -131,7 +169,7 @@ class SQLiteStorage(StoragePort):
             cursor = conn.cursor()
 
             cursor.execute(
-                "SELECT URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS, NEWS_DATE "
+                "SELECT URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS, NEWS_DATE, NEWS_TIME "
                 "FROM PIPELINE_PROC_NEWS WHERE URL = ?",
                 (url,),
             )
@@ -149,6 +187,7 @@ class SQLiteStorage(StoragePort):
                     "NM_SITE": row[3],
                     "PROC_SUCCESS": row[4],
                     "NEWS_DATE": row[5],
+                    "NEWS_TIME": row[6],
                 }
             )
 
@@ -322,9 +361,20 @@ class SQLiteStorage(StoragePort):
             CREATE TABLE IF NOT EXISTS granger_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PROC_ID TEXT
             )
         """)
+        self._migrate_granger_schema(cursor)
+
+    def _migrate_granger_schema(self, cursor) -> None:
+        """Add PROC_ID to pre-existing granger_results tables (idempotente)."""
+        columns = {row[1] for row in cursor.execute(
+            "PRAGMA table_info(granger_results)"
+        ).fetchall()}
+
+        if "PROC_ID" not in columns:
+            cursor.execute("ALTER TABLE granger_results ADD COLUMN PROC_ID TEXT")
 
     def _create_pipeline_proc_table(self, cursor) -> None:
         """Create PIPELINE_PROC_ID table — one row per execution."""
@@ -346,23 +396,32 @@ class SQLiteStorage(StoragePort):
                 PROC_TS      TIMESTAMP NOT NULL,
                 NM_SITE      TEXT,
                 PROC_SUCCESS BOOLEAN   NOT NULL,
-                NEWS_DATE    TEXT
+                NEWS_DATE    TEXT,
+                NEWS_TIME    TEXT
             )
         """)
 
     def _reset_proc_news_if_outdated(self, cursor) -> None:
-        """Drop PIPELINE_PROC_NEWS when its columns differ from the expected ones.
+        """Migrate or drop PIPELINE_PROC_NEWS when its columns differ from the expected ones.
 
-        Sem dados de produção a preservar: tabela desatualizada é descartada e recriada
-        (idempotente — com o schema atual nada é alterado). Necessário porque os métodos
-        do adapter engolem sqlite3.Error e INSERTs num schema antigo falhariam em silêncio.
+        Só falta NEWS_TIME (schema da versão anterior): acrescenta a coluna e preserva os
+        dados. Qualquer outro schema desatualizado é descartado e recriado, pois não há
+        dados de produção a preservar. Idempotente — com o schema atual nada é alterado.
+        Necessário porque os métodos do adapter engolem sqlite3.Error e INSERTs num schema
+        antigo falhariam em silêncio.
         """
         columns = {row[1] for row in cursor.execute(
             "PRAGMA table_info(PIPELINE_PROC_NEWS)"
         ).fetchall()}
 
-        if columns and columns != _PROC_NEWS_COLUMNS:
-            cursor.execute("DROP TABLE PIPELINE_PROC_NEWS")
+        if not columns or columns == _PROC_NEWS_COLUMNS:
+            return
+
+        if columns == _PROC_NEWS_COLUMNS - {"NEWS_TIME"}:
+            cursor.execute("ALTER TABLE PIPELINE_PROC_NEWS ADD COLUMN NEWS_TIME TEXT")
+            return
+
+        cursor.execute("DROP TABLE PIPELINE_PROC_NEWS")
 
     def _create_treated_news_table(self, cursor) -> None:
         """Create PIPELINE_TREATED_NEWS table for treated documents."""

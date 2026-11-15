@@ -91,9 +91,17 @@ class StoragePort(ABC):
         pass
 
     @abstractmethod
-    def save_granger_test_results(self, results: Dict) -> None:
-        """Save Granger test results."""
+    def save_granger_test_results(
+        self,
+        results: Dict,
+        proc_id: Optional[str] = None,
+    ) -> None:
+        """Save the Granger report (JSON-serializable dict) tagged with the execution uuid."""
         pass
+
+    def get_granger_results(self, proc_id: Optional[str] = None) -> Optional[Dict]:
+        """Return the stored Granger report for ``proc_id`` (latest when None), or None."""
+        return None
 
     # --- Rastreabilidade de execução ----------------------
 

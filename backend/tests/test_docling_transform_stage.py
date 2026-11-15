@@ -1,7 +1,7 @@
 """Testes da DoclingTransformStage (etapa 0) com conversor Docling falso — offline."""
 
 import json
-from datetime import date
+from datetime import date, time
 
 import pytest
 
@@ -70,9 +70,28 @@ def test_success_entry_shape():
     assert result.data["news_markdowns"] == [
         {
             "url": A, "site": "G1", "markdown": f"# md de {A}",
-            "success": True, "news_date": "2026-11-03",
+            "success": True, "news_date": "2026-11-03", "news_time": None,
         }
     ]
+
+
+def test_news_time_is_propagated_to_entry_and_proc_news_record():
+    repo = _FakeRepo()
+    links = {"2026-11-03": [A, {"url": B, "time": "18:42"}]}
+
+    result = _stage(repo=repo).execute({"news_links": links, "pipeline_id": "run-1"})
+
+    times = {e["url"]: e["news_time"] for e in result.data["news_markdowns"]}
+    assert times == {A: None, B: "18:42"}
+    assert {r.url: r.news_time for r in repo.records} == {A: None, B: time(18, 42)}
+
+
+def test_failed_conversion_keeps_news_time():
+    result = _stage(failing=[B]).execute(
+        {"news_links": {"2026-11-03": [{"url": B, "time": "09:30"}]}}
+    )
+
+    assert result.data["news_markdowns"][0]["news_time"] == "09:30"
 
 
 def test_failed_conversion_keeps_news_date():

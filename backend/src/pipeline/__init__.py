@@ -13,6 +13,7 @@ from .stages import (
     DataCollectionStage,
     FeatureEngineeringStage,
     ConfoundingHandlerStage,
+    GrangerCausalityStage,
     ModelingPreparationStage,
 )
 
@@ -29,5 +30,6 @@ __all__ = [
     "DataCollectionStage",
     "FeatureEngineeringStage",
     "ConfoundingHandlerStage",
+    "GrangerCausalityStage",
     "ModelingPreparationStage",
 ]
