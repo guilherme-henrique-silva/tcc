@@ -5,7 +5,6 @@
         ],
         "2025-01-05": [
             {"url": "https://g1.globo.com/economia/noticia/2025/01/05/com-disparada-do-dolar-e-leiloes-do-bc-reservas-internacionais-do-brasil-caem-71percent-em-2024.ghtml", "time": "13:10"}
-            {"url": "https://www.metropoles.com/distrito-federal/preso-fugitivo-comandou-roubo-a-banco-via-whatsapp-direto-da-cadeia", "time": "11:37"}
         ],
         "2025-01-06": [
             {"url": "https://www.estadao.com.br/einvestidor/onde-investir/7-empresas-dividendos-trimestrais-2025/", "time": "16:13"},
@@ -15,8 +14,7 @@
             {"url": "https://www.cnnbrasil.com.br/politica/projeto-preve-cadastro-on-line-de-obras-custeadas-pelo-governo-federal-conheca/", "time": "18:35"}
         ],
         "2025-01-08": [
-            {"url": "https://www.estadao.com.br/einvestidor/radar/10-bancos-pagamento-de-ipva-multas-de-transito-licenciamento/", "time": "10:05"},
-            {"url": "https://www.metropoles.com/distrito-federal/irmaos-metralha-roubaram-banco-e-sequestraram-funcionarios-por-12h", "time": "16:07"}
+            {"url": "https://www.estadao.com.br/einvestidor/radar/10-bancos-pagamento-de-ipva-multas-de-transito-licenciamento/", "time": "10:05"}
         ],
         "2025-01-09": [
             {"url": "https://www.estadao.com.br/economia/teto-juros-consignado-inss/", "time": "15:41"}
@@ -77,6 +75,104 @@
             {"url": "https://g1.globo.com/rn/rio-grande-do-norte/noticia/2025/01/31/emprestimos-consignados-bloqueados-servidores-rn.ghtml", "time": "20:03"},
             {"url": "https://www.estadao.com.br/economia/comprovante-pis-pasep-2025-o-que-e-como-emitir-e-para-que-serve-nprei/", "time": "10:08"},
             {"url": "https://g1.globo.com/jornal-nacional/noticia/2025/01/31/estatais-federais-registraram-rombo-de-r-67-bilhoes-em-2024-o-maior-em-15-anos.ghtml", "time": "20:52"}
+        ],
+        "2025-02-02": [
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/financiamento-imobiliario-cresce-em-2024-mas-deve-cair-em-2025-diz-abecip/", "time": "06:00"}
+        ],
+        "2025-02-03": [
+            {"url": "https://www.estadao.com.br/pme/o-que-e-o-cartao-mei-e-como-ele-pode-ser-solicitado-nprei/", "time": "12:41"}
+        ],
+        "2025-02-04": [
+            {"url": "https://www.metropoles.com/colunas/dinheiro-e-negocios/associacao-diz-que-bb-faz-venda-casada-de-produtos-financeiros-para-liberar-credito-rural", "time": "11:26"},
+            {"url": "https://www.estadao.com.br/einvestidor/radar/pis-pasep-quando-abono-salarial-2025-comeca-pago/", "time": "14:15"},
+            {"url": "https://www.cnnbrasil.com.br/noticias/dividendos-recomendados-fevereiro-2025/", "time": "04:41"}
+        ],
+        "2025-02-05": [
+            {"url": "https://www.cnnbrasil.com.br/economia/seu-bolso/meu-dinheiro/abono-salarial-veja-quem-tem-direito-e-como-consultar-beneficio/", "time": "12:10"}
+        ],
+        "2025-02-06": [
+            {"url": "https://www.metropoles.com/colunas/dinheiro-e-negocios/veja-quem-tera-direito-a-valores-na-devolucao-de-r-20-milhoes-do-banco-do-brasil-a-correntistas", "time": "16:07"},
+            {"url": "https://www.metropoles.com/negocios/como-sera-a-devolucao-de-r-20-milhoes-do-banco-do-brasil-a-clientes", "time": "15:35"},
+            {"url": "https://www.metropoles.com/negocios/banco-do-brasil-tera-de-devolver-mais-de-r-20-milhoes-a-clientes", "time": "10:49"},
+            {"url": "https://www.cnnbrasil.com.br/economia/seu-bolso/meu-dinheiro/entenda-o-que-e-a-previ-e-como-funciona-o-fundo-previdenciario/", "time": "13:59"},
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/quem-e-o-sindicalista-que-preside-a-previ-alvo-de-auditoria-do-tcu/", "time": "19:03"},
+            {"url": "https://g1.globo.com/economia/noticia/2025/02/06/itau-unibanco-maior-lucro-da-historia-levantamento.ghtml", "time": "12:45"},
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/rombo-na-previ-gera-duvidas-em-gestao-de-investimento-em-meio-a-juros-altos/", "time": "19:49"},
+            {"url": "https://www.estadao.com.br/einvestidor/radar/pasep-confira-consultar-data-pagamento/", "time": "14:06"},
+            {"url": "https://www.metropoles.com/negocios/lucro-do-itau-foi-o-maior-da-historia-dos-bancos-listados-na-bolsa", "time": "11:27"},
+            {"url": "https://noticias.uol.com.br/ultimas-noticias/agencia-estado/2025/02/06/flavio-bolsonaro-usa-bone-para-ironizar-prejuizo-bilionario-da-previ-rombo-e-dos-brasileiros.htm", "time": "14:27"},
+            {"url": "https://www.estadao.com.br/einvestidor/cenarios-e-mercado/itau-itub4-maior-lucro-historia-bolsa-recorde/", "time": "13:05"}
+        ],
+        "2025-02-07": [
+            {"url": "https://www.cnnbrasil.com.br/noticias/banco-do-brasil-devolve-mais-de-r-20-mi-por-cobrancas-de-juros-indevidas/", "time": "21:15"},
+            {"url": "https://www.metropoles.com/negocios/diretor-e-ex-executivos-do-banco-do-brasil-vao-pagar-r-872-mil-ao-bc", "time": "13:00"},
+            {"url": "https://www.estadao.com.br/einvestidor/cenarios-e-mercado/abono-salarial-2025-como-sacar-pis-pasep/", "time": "18:40"},
+            {"url": "https://www.estadao.com.br/einvestidor/onde-investir/previ-o-que-tem-na-carteira-fundo-na-mira-do-tcu/", "time": "14:40"},
+            {"url": "https://www.cnnbrasil.com.br/economia/seu-bolso/meu-dinheiro/rombo-da-previ-veja-perguntas-da-cnn-que-o-fundo-de-pensao-nao-respondeu/", "time": "18:24"},
+            {"url": "https://www.metropoles.com/negocios/cobranca-indevida-de-tarifa-do-banco-do-brasil-durou-quase-12-anos", "time": "06:47"},
+            {"url": "https://g1.globo.com/jornal-nacional/noticia/2025/02/07/tcu-determina-auditoria-nas-contas-da-previ-que-em-2024-registrou-perdas-de-bilhoes-de-reais.ghtml", "time": "21:04"},
+            {"url": "https://www.cnnbrasil.com.br/politica/oposicao-busca-assinaturas-para-criar-cpi-da-previ/", "time": "13:58"},
+            {"url": "https://www.cnnbrasil.com.br/politica/oposicao-quer-convocar-presidente-da-previ-para-explicacoes-no-congresso/", "time": "13:51"},
+            {"url": "https://www.cnnbrasil.com.br/blogs/victor-iraja/economia/money/macroeconomia/presidente-da-previ-perde-posto-de-principal-interlocutor-de-lula-na-vale-dizem-fontes/", "time": "13:22"}
+        ],
+        "2025-02-08": [
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/entenda-o-caso-previ-que-marcou-a-semana-apos-rombo-bilionario/", "time": "10:07"}
+        ],
+        "2025-02-09": [
+            {"url": "https://www.metropoles.com/colunas/paulo-cappelli/lula-prepara-estoque-de-arroz-milho-e-trigo-contra-alta-dos-alimentos", "time": "21:45"}
+        ],
+        "2025-02-11": [
+            {"url": "https://www.cnnbrasil.com.br/politica/tcu-da-inicio-a-auditoria-nas-contas-da-previ/", "time": "15:10"},
+            {"url": "https://www.cnnbrasil.com.br/economia/seu-bolso/meu-dinheiro/quanto-fukunaga-ganha-na-previ-e-em-conselhos-por-indicacao-politica/", "time": "08:30"},
+            {"url": "https://www.cnnbrasil.com.br/politica/lula-em-hipotese-alguma-deixaremos-de-atender-necessidades-por-ideologia/", "time": "15:14"},
+            {"url": "https://www.cnnbrasil.com.br/politica/deputado-pede-afastamento-de-fukunaga-da-presidencia-da-previ/", "time": "16:04"}
+        ],
+        "2025-02-12": [
+            {"url": "https://www.estadao.com.br/einvestidor/radar/pis-pasep-2025-primeiro-lote-pago-dia-17/", "time": "12:17"}
+        ],
+        "2025-02-13": [
+            {"url": "https://www.metropoles.com/blog-do-noblat/ricardo-noblat/a-republica-que-agora-esta-em-alta-nas-cercanias-de-lula", "time": "05:30"}
+        ],
+        "2025-02-15": [
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/rombo-na-previ-pode-prejudicar-resultado-do-bb-dizem-especialistas/", "time": "15:46"}
+        ],
+        "2025-02-17": [
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/sindicalista-fukunaga-tem-curriculo-que-destoa-de-ex-chefes-da-previ/", "time": "09:32"}
+        ],
+        "2025-02-18": [
+            {"url": "https://www.cnnbrasil.com.br/economia/money/mercado/bb-seguridade-ve-sinistralidade-de-seguro-rural-avancando-em-2025/", "time": "15:45"},
+            {"url": "https://www.estadao.com.br/economia/condenado-mensalao-barrar-fiscalizacao-tcu-fundos-pensao/", "time": "17:32"}
+        ],
+        "2025-02-19": [
+            {"url": "https://www.estadao.com.br/einvestidor/cenarios-e-mercado/banco-do-brasil-bbas3-calendario-dividendos-jcp-2025/", "time": "19:37"},
+            {"url": "https://www.cnnbrasil.com.br/economia/money/negocios/revisamos-o-guidance-para-cima-em-2025-diz-presidente-do-bb-seguridades/", "time": "18:38"},
+            {"url": "https://www.cnnbrasil.com.br/economia/estrategia-segura-de-investimento-evitaria-rombo-bilionario-na-previ-dizem-especialistas/", "time": "22:30"}
+        ],
+        "2025-02-20": [
+            {"url": "https://www.estadao.com.br/einvestidor/onde-investir/melhores-bancos-para-investir-2025-fgv/", "time": "11:19"},
+            {"url": "https://www.metropoles.com/negocios/acoes-do-banco-do-brasil-tombam-quase-3-apos-divulgacao-de-balanco", "time": "16:07"},
+            {"url": "https://www.estadao.com.br/einvestidor/onde-investir/melhor-banco-para-voce-investir-acoes-2025-banco-safra/", "time": "03:00"}
+        ],
+        "2025-02-21": [
+            {"url": "https://www.estadao.com.br/economia/lucro-bancos-ajustam-credito-cenario-dificil/", "time": "09:30"},
+            {"url": "https://www.estadao.com.br/estadao-verifica/previ-nao-gastou-40-bilhoes-desde-governo-bolsonaro/", "time": "14:58"},
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/apos-10-anos-previ-repete-filme-de-rombo-e-suspeita-em-fundo-de-pensao/", "time": "11:24"}
+        ],
+        "2025-02-24": [
+            {"url": "https://www.cnnbrasil.com.br/economia/money/negocios/banco-do-brasil-expande-a-todos-os-clientes-pessoa-fisica-o-pix-por-aproximacao/", "time": "16:06"}
+        ],
+        "2025-02-25": [
+            {"url": "https://www.cnnbrasil.com.br/economia/money/negocios/banco-do-brasil-abre-novo-escritorio-nos-eua/", "time": "19:21"},
+            {"url": "https://www.cnnbrasil.com.br/noticias/pix-por-aproximacao-comeca-a-valer-nesta-sexta-28-confira-como-funciona/", "time": "08:39"}
+        ],
+        "2025-02-26": [
+            {"url": "https://www.metropoles.com/colunas/dinheiro-e-negocios/banco-do-brasil-alcanca-r-400-bilhoes-na-carteira-de-credito-agro", "time": "17:19"},
+            {"url": "https://www.estadao.com.br/einvestidor/onde-investir/banco-do-brasil-bbas3-dividendos-itau-itub4-quem-paga-mais/", "time": "06:59"},
+            {"url": "https://g1.globo.com/mg/sul-de-minas/noticia/2025/02/26/incendio-destroi-agencia-bancaria-em-jacutinga-mg.ghtml", "time": "07:39"}
+        ],
+        "2025-02-28": [
+            {"url": "https://www.estadao.com.br/einvestidor/onde-investir/vale-vale3-ou-banco-do-brasil-bbas3-quem-pagou-mais-dividendos-na-ultima-decada-e-como-fica-2025/", "time": "09:40"},
+            {"url": "https://www.estadao.com.br/economia/pix-por-aproximacao-comeca-valer-nesta-semana-como-vai-funcionar-nprei/", "time": "13:50"}
         ]
     }
 }
