@@ -13,8 +13,8 @@ except Exception:  # dotenv é opcional na imagem do frontend
 
 
 # Fallback usado apenas quando o .env não define as datas.
-_DEFAULT_START = datetime.now().replace(month=1, day=1).date()
-_DEFAULT_END = datetime.now().replace(month=12, day=31).date()
+_DEFAULT_START = date(2025, 1, 1)
+_DEFAULT_END = date(2025, 3, 31)
 
 
 def get_date_range() -> Tuple[date, date]:

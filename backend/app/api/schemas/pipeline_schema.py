@@ -72,7 +72,7 @@ class PipelineExecuteRequest(BaseModel):
                 "news_file_path": "/data/news_2025.csv",
                 "date_range": {
                     "start_date": "2025-01-01",
-                    "end_date": "2025-12-31",
+                    "end_date": "2025-03-31",
                 },
                 "enabled_stages": ALL_STAGE_NAMES,
                 "news_links": {
@@ -278,7 +278,7 @@ class ValidationReportDTO(BaseModel):
                 "warnings": ["Low correlation between some competitors"],
                 "summary": {
                     "n_records": 252,
-                    "date_range": "2025-01-01 to 2025-12-31",
+                    "date_range": "2025-01-01 to 2025-03-31",
                     "missing_values": 0,
                 },
             }

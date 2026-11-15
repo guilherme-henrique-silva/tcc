@@ -232,11 +232,11 @@ Copie `.env.example` para `.env` e ajuste os valores. Referência consolidada:
 | Variável             | Exemplo                                  |
 |----------------------|------------------------------------------|
 | `DATE_START`         | `2025-01-01`                             |
-| `DATE_END`           | `2025-12-31`                             |
+| `DATE_END`           | `2025-03-31`                             |
 | `DATA_INICIAL_SELIC` | `01/01/2025`  (Selic: `DD/MM/YYYY`)      |
-| `DATA_FINAL_SELIC`   | `31/12/2025`                             |
+| `DATA_FINAL_SELIC`   | `31/03/2025`                             |
 | `DATA_INICIAL_DOLAR` | `01-01-2025`  (PTAX: `MM-DD-YYYY`)       |
-| `DATA_FINAL_DOLAR`   | `12-31-2025`                             |
+| `DATA_FINAL_DOLAR`   | `03-31-2025`                             |
 | `API_BCB_SELIC`      | URL SGS 11 (ver `.env.example`)          |
 | `API_BCB_DOLAR`      | URL PTAX (ver `.env.example`)            |
 | `DATABASE_URL`       | local: default relativo ao repo · Docker: `sqlite:////app/data/pipeline.db` |
