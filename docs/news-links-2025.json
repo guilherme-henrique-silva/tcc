@@ -1,43 +1,82 @@
 {
     "news_links": {
+        "2025-01-03": [
+            {"url": "https://www.estadao.com.br/einvestidor/radar/ipva-pagamento-imposto-via-pix/", "time": "12:57"}
+        ],
         "2025-01-05": [
             {"url": "https://g1.globo.com/economia/noticia/2025/01/05/com-disparada-do-dolar-e-leiloes-do-bc-reservas-internacionais-do-brasil-caem-71percent-em-2024.ghtml", "time": "13:10"}
+            {"url": "https://www.metropoles.com/distrito-federal/preso-fugitivo-comandou-roubo-a-banco-via-whatsapp-direto-da-cadeia", "time": "11:37"}
+        ],
+        "2025-01-06": [
+            {"url": "https://www.estadao.com.br/einvestidor/onde-investir/7-empresas-dividendos-trimestrais-2025/", "time": "16:13"},
+            {"url": "https://www.estadao.com.br/einvestidor/onde-investir/empresas-boas-pagadoras-dividendos-2025-mensais-trimestrais/", "time": "03:00"}
+        ],
+        "2025-01-07": [
+            {"url": "https://www.cnnbrasil.com.br/politica/projeto-preve-cadastro-on-line-de-obras-custeadas-pelo-governo-federal-conheca/", "time": "18:35"}
         ],
         "2025-01-08": [
-            "https://www.estadao.com.br/einvestidor/radar/10-bancos-pagamento-de-ipva-multas-de-transito-licenciamento/"
+            {"url": "https://www.estadao.com.br/einvestidor/radar/10-bancos-pagamento-de-ipva-multas-de-transito-licenciamento/", "time": "10:05"},
+            {"url": "https://www.metropoles.com/distrito-federal/irmaos-metralha-roubaram-banco-e-sequestraram-funcionarios-por-12h", "time": "16:07"}
+        ],
+        "2025-01-09": [
+            {"url": "https://www.estadao.com.br/economia/teto-juros-consignado-inss/", "time": "15:41"}
         ],
         "2025-01-10": [
-            "https://www.estadao.com.br/economia/bb-mantem-suspensao-consignado-inss-via-correspondente-mesmo-apos-elevacao-teto/"
+            {"url": "https://www.estadao.com.br/economia/bb-mantem-suspensao-consignado-inss-via-correspondente-mesmo-apos-elevacao-teto/", "time": "17:03"}
+        ],
+        "2025-01-13": [
+            {"url": "https://g1.globo.com/mt/mato-grosso/noticia/2025/01/13/estimativa-aponta-mato-grosso-com-2o-maior-pib-do-pais-com-destaque-para-agropecuaria.ghtml", "time": "19:27"}
         ],
         "2025-01-14": [
-            "https://www.metropoles.com/conteudo-especial/nova-gestao-da-anabb-em-defesa-do-banco-do-brasil-e-dos-funcionarios"
+            {"url": "https://www.metropoles.com/conteudo-especial/nova-gestao-da-anabb-em-defesa-do-banco-do-brasil-e-dos-funcionarios", "time": "15:51"},
+            {"url": "https://g1.globo.com/es/espirito-santo/noticia/2025/01/14/furto-milionario-no-bb-completa-dois-meses-e-casal-continua-preso-no-rs-relembre-o-crime.ghtml", "time": "16:34"},
+            {"url": "https://www.estadao.com.br/politica/estatais-gastaram-ate-r-8345-milhoes-com-g20-e-janjapalooza-mostram-documentos/", "time": "17:33"},
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/mec-separa-r-17-bi-para-investir-em-valorizacao-de-professores-diz-camilo/", "time": "19:22"}
+        ],
+        "2025-01-16": [
+            {"url": "https://www.estadao.com.br/einvestidor/financas-pessoais/pix-revogado-entenda-como-fica-apos-recuo-de-haddad/", "time": "10:58"},
+            {"url": "https://www.estadao.com.br/economia/entrevista-paulo-tafner-economia-brasileira-aviao-mostra-que-vai-cair/", "time": "16:01"}
+        ],
+        "2025-01-17": [
+            {"url": "https://www.estadao.com.br/estadao-verifica/bolsonaro-engana-ao-dizer-que-criou-pix-e-que-bancos-perderam-r-30-bi-com-pagamento-instantaneo/", "time": "19:19"},
+            {"url": "https://www.estadao.com.br/tecmundo/ciberseguranca/401648-painel-do-crime-vende-paginas-falsas-de-nubank-itau-bradesco-e-outros/", "time": "19:50"},
+            {"url": "https://g1.globo.com/rs/rio-grande-do-sul/noticia/2025/01/17/justica-do-rs-autoriza-transferencia-de-casal-preso-por-furto-milionario-em-agencia-bancaria-para-espirito-santo.ghtml", "time": "12:35"}
         ],
         "2025-01-20": [
-            "https://www.estadao.com.br/economia/coluna-do-broadcast-agro/banco-do-brasil-preve-recuperacao-do-agro-e-reforca-atuacao-no-setor/"
+            {"url": "https://www.estadao.com.br/economia/coluna-do-broadcast-agro/banco-do-brasil-preve-recuperacao-do-agro-e-reforca-atuacao-no-setor/", "time": "03:00"},
+            {"url": "https://www.metropoles.com/colunas/fabio-serapiao/denuncia-de-propina-levou-pf-a-saque-de-r-345-mil-em-banco-na-marinha", "time": "19:12"},
+            {"url": "https://www.estadao.com.br/opiniao/o-show-de-janja-custa-caro/", "time": "03:00"}
         ],
         "2025-01-21": [
-            "https://www.metropoles.com/negocios/itau-e-banco-do-brasil-estao-entre-500-marcas-mais-valiosas-do-mundo"
+            {"url": "https://www.metropoles.com/negocios/itau-e-banco-do-brasil-estao-entre-500-marcas-mais-valiosas-do-mundo", "time": "09:30"}
         ],
         "2025-01-22": [
-            "https://www.cnnbrasil.com.br/economia/money/negocios/itau-e-bb-estao-entre-as-500-marcas-mais-valiosas-do-mundo-diz-pesquisa/"
+            {"url": "https://www.cnnbrasil.com.br/economia/money/negocios/itau-e-bb-estao-entre-as-500-marcas-mais-valiosas-do-mundo-diz-pesquisa/", "time": "11:29"}
         ],
         "2025-01-23": [
-            "https://g1.globo.com/pi/piaui/noticia/2025/01/23/caixas-do-banco-do-brasil-fazem-manifestacao-e-adiam-servicos-por-duas-horas-nesta-quinta-23-no-piaui.ghtml",
-            "https://www.estadao.com.br/economia/ranking-marcas-mais-valiosas-do-mundo-2025-brasileiras-nprei/"
+            {"url": "https://g1.globo.com/pi/piaui/noticia/2025/01/23/caixas-do-banco-do-brasil-fazem-manifestacao-e-adiam-servicos-por-duas-horas-nesta-quinta-23-no-piaui.ghtml", "time": "12:40"},
+            {"url": "https://www.estadao.com.br/economia/ranking-marcas-mais-valiosas-do-mundo-2025-brasileiras-nprei/", "time": "10:19"},
+            {"url": "https://www.estadao.com.br/economia/negocios/nubank-passa-itau-terceiro-maior-banco-numero-clientes/", "time": "19:54"},
+            {"url": "https://g1.globo.com/educacao/noticia/2025/01/23/no-bbb-25-renata-diz-que-quer-ganhar-r-10-mil-para-pagar-o-fies-veja-como-funciona-a-renegociacao-de-divida.ghtml", "time": "12:20"}
         ],
         "2025-01-24": [
-            "https://g1.globo.com/economia/noticia/2025/01/24/nubank-passa-o-itau-em-numero-de-clientes-e-se-torna-o-3o-maior-do-brasil.ghtml"
+            {"url": "https://g1.globo.com/economia/noticia/2025/01/24/nubank-passa-o-itau-em-numero-de-clientes-e-se-torna-o-3o-maior-do-brasil.ghtml", "time": "11:39"}
         ],
         "2025-01-27": [
-            "https://g1.globo.com/economia/noticia/2025/01/27/juro-bancario-tem-pequeno-aumento-em-2024-credito-acelera-e-inadimplencia-recua-revela-bc.ghtml"
+            {"url": "https://g1.globo.com/economia/noticia/2025/01/27/juro-bancario-tem-pequeno-aumento-em-2024-credito-acelera-e-inadimplencia-recua-revela-bc.ghtml", "time": "08:55"},
+            {"url": "https://www.cnnbrasil.com.br/economia/money/mercado/mercado-financeiro-ibovespa-dolar-27-janeiro-2025/", "time": "22:11"}
         ],
         "2025-01-29": [
-            "https://www.cnnbrasil.com.br/economia/money/macroeconomia/lula-e-bancos-se-reunem-sobre-consignado-governo-quer-fgts-como-garantia/"
+            {"url": "https://www.cnnbrasil.com.br/economia/money/macroeconomia/lula-e-bancos-se-reunem-sobre-consignado-governo-quer-fgts-como-garantia/", "time": "14:48"}
+        ],
+        "2025-01-30": [
+            {"url": "https://g1.globo.com/economia/noticia/2025/01/30/correios-elevam-deficit-das-estatais-em-2024-e-preocupam-governo.ghtml", "time": "18:00"}
         ],
         "2025-01-31": [
-            "https://g1.globo.com/trabalho-e-carreira/concursos/noticia/2025/01/31/golpe-do-falso-concurso-entenda-o-crime-com-suposta-selecao-do-banco-do-brasil-e-saiba-como-se-proteger.ghtml",
-            "https://g1.globo.com/rn/rio-grande-do-norte/noticia/2025/01/31/emprestimos-consignados-bloqueados-servidores-rn.ghtml",
-            "https://www.estadao.com.br/economia/comprovante-pis-pasep-2025-o-que-e-como-emitir-e-para-que-serve-nprei/"
+            {"url": "https://g1.globo.com/trabalho-e-carreira/concursos/noticia/2025/01/31/golpe-do-falso-concurso-entenda-o-crime-com-suposta-selecao-do-banco-do-brasil-e-saiba-como-se-proteger.ghtml", "time": "02:00"},
+            {"url": "https://g1.globo.com/rn/rio-grande-do-norte/noticia/2025/01/31/emprestimos-consignados-bloqueados-servidores-rn.ghtml", "time": "20:03"},
+            {"url": "https://www.estadao.com.br/economia/comprovante-pis-pasep-2025-o-que-e-como-emitir-e-para-que-serve-nprei/", "time": "10:08"},
+            {"url": "https://g1.globo.com/jornal-nacional/noticia/2025/01/31/estatais-federais-registraram-rombo-de-r-67-bilhoes-em-2024-o-maior-em-15-anos.ghtml", "time": "20:52"}
         ]
     }
 }
