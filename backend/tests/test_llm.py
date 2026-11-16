@@ -98,6 +98,28 @@ class TestLocalAdapter:
         assert calls["download"] == 0  # já presente em disco → não rebaixa
 
 
+    def test_default_pipeline_sets_max_new_tokens(self, tmp_path, monkeypatch):
+        """Regressão: sem max_new_tokens o transformers usa max_length=20 e falha."""
+        import transformers
+
+        captured = {}
+
+        def fake_pipeline(task, **kwargs):
+            captured["task"] = task
+            captured.update(kwargs)
+            return lambda text: []
+
+        monkeypatch.setattr(transformers, "pipeline", fake_pipeline)
+        adapter = LocalLlmAdapter("llm-models/m", str(tmp_path / "llm-models"))
+
+        adapter._default_pipeline_builder()("dir", -1)
+
+        assert captured["task"] == "text-generation"
+        assert captured["max_new_tokens"] >= 1024
+        assert captured["return_full_text"] is False
+        assert "max_length" not in captured
+
+
 class TestApiAdapter:
     """ApiLlmAdapter via Pydantic AI usando TestModel (sem rede)."""
 

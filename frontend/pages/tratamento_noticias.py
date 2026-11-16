@@ -37,6 +37,7 @@ links = nl.flatten(link_groups)
 
 st.session_state.setdefault("orig_md", {})
 st.session_state.setdefault("treated_md", {})
+st.session_state.setdefault("editor_ver", {})
 originals = st.session_state["orig_md"]
 treated = st.session_state["treated_md"]
 
@@ -103,9 +104,30 @@ def _load_original(url: str) -> None:
         st.error(f"Erro ao converter '{url}': {e}")
 
 
+def _set_treated(url: str, text: str) -> None:
+    """Define o texto do editor; a versão na key força o editor a recarregar o valor."""
+    treated[url] = text
+    versions = st.session_state["editor_ver"]
+    versions[url] = versions.get(url, 0) + 1
+
+
+def _load_formatted(url: str) -> None:
+    """Carrega o original (se preciso) e põe no editor com o frontmatter preenchido."""
+    if not originals.get(url):
+        _load_original(url)
+
+    original = originals.get(url, "")
+    if not original:
+        st.warning("Sem original para formatar; carregue-o antes.")
+        return
+
+    day = nl.date_of(link_groups, url)
+    _set_treated(url, tpl.formatted(url, nl.to_br(day) if day else "", original))
+
+
 def _treat_with_llm(url: str, model_path: str) -> None:
     try:
-        treated[url] = client.treat_news(originals.get(url, ""), model_path or None)
+        _set_treated(url, client.treat_news(originals.get(url, ""), model_path or None))
     except Exception as e:  # noqa: BLE001
         st.error(f"Erro no tratamento via LLM de '{url}': {e}")
 
@@ -116,9 +138,14 @@ def _render_record(url: str, use_llm: bool, model_path: str) -> None:
     label = f"📅 {nl.to_br(day)} · {url}" if day else url
 
     with st.expander(label, expanded=False):
-        if url not in originals:
-            if st.button("📥 Carregar original", key=f"load_{url}"):
+        col_original, col_formatted, _ = st.columns([1, 1, 3])
+        with col_original:
+            if url not in originals and st.button("📥 Carregar original", key=f"load_{url}"):
                 _load_original(url)
+                st.rerun()
+        with col_formatted:
+            if st.button("📝 Carregar formatado", key=f"fmt_{url}"):
+                _load_formatted(url)
                 st.rerun()
 
         original = originals.get(url, "")
@@ -169,12 +196,14 @@ def _render_editor_and_save(url: str, original: str) -> None:
         url, nl.to_br(day) if day else "", treated.get(url), original
     )
 
+    version = st.session_state["editor_ver"].get(url, 0)
+
     if code_editor is not None:
-        response = code_editor(current, lang="markdown", key=f"ed_{url}")
+        response = code_editor(current, lang="markdown", key=f"ed_{url}_{version}")
         edited = response.get("text") or current
     else:
         edited = st.text_area(
-            "Markdown tratado", value=current, height=300, key=f"ta_{url}"
+            "Markdown tratado", value=current, height=300, key=f"ta_{url}_{version}"
         )
 
     col_aceitar, col_descartar = st.columns(2)
@@ -190,6 +219,7 @@ def _render_editor_and_save(url: str, original: str) -> None:
     with col_descartar:
         if st.button("↩️ Descartar", key=f"discard_{url}"):
             treated.pop(url, None)
+            st.session_state["editor_ver"][url] = version + 1
             st.info("Texto restaurado para o original pós-Docling.")
             st.rerun()
 

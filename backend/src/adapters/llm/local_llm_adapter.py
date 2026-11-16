@@ -6,6 +6,10 @@ from src.ports.llm import LlmPort
 from src.adapters.llm.catalog import resolve_local_dir, STATUS_READY, disk_status
 
 
+# Limite de tokens *gerados* (a notícia tratada tem tamanho próximo ao da entrada).
+MAX_NEW_TOKENS = 2048
+
+
 class LocalLlmAdapter(LlmPort):
     """Carrega um modelo local de `llm-models/` e roda inferência sob demanda.
 
@@ -97,6 +101,14 @@ class LocalLlmAdapter(LlmPort):
         from transformers import pipeline
 
         def build(model_dir: str, device: int):
-            return pipeline("text-generation", model=model_dir, device=device)
+            # max_new_tokens evita o default de max_length=20 (que conta o prompt);
+            # return_full_text=False devolve só o texto gerado, sem repetir o prompt.
+            return pipeline(
+                "text-generation",
+                model=model_dir,
+                device=device,
+                max_new_tokens=MAX_NEW_TOKENS,
+                return_full_text=False,
+            )
 
         return build

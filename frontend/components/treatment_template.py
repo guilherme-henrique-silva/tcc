@@ -6,6 +6,8 @@ original convertido ou de um esqueleto vazio (`skeleton`), e `is_example` barra 
 do exemplo.
 """
 
+import re
+import unicodedata
 from typing import Optional
 
 # Exemplo de saída BRUTA do Docling (sem frontmatter — coluna esquerda "original")
@@ -72,6 +74,107 @@ def initial_text(
         return original
 
     return skeleton(url, date_br)
+
+
+_DEFAULT_CATEGORY = "finanças"
+
+# Palavras-chave (minúsculas, sem exigir acento) por categoria — heurística simples e editável.
+_CATEGORY_KEYWORDS = {
+    "agronegócio": ["agro", "agronegocio", "agricultura", "soja", "milho", "safra", "pecuaria",
+                    "boi", "cafe", "cana", "fertilizante", "rural"],
+    "macroeconomia": ["selic", "inflacao", "ipca", "pib", "juros", "copom", "banco central",
+                      "dolar", "cambio", "fiscal", "reservas", "desemprego", "deficit", "superavit"],
+    "política": ["governo", "lula", "congresso", "senado", "camara", "eleicao", "ministro",
+                 "stf", "presidente", "reforma", "partido"],
+    "tecnologia": ["tecnologia", "inteligencia artificial", "ia", "software", "aplicativo",
+                   "app", "nuvem", "cibernetico", "algoritmo", "startup"],
+    "microeconomia": ["consumidor", "varejo", "empresa", "industria", "salario",
+                      "preco", "setor", "demanda", "oferta"],
+    "finanças": ["acao", "acoes", "bolsa", "ibovespa", "dividendo", "dividendos", "banco",
+                 "fundo", "investimento", "investidor", "balanco", "lucro", "tesouro", "bbas3"],
+}
+
+_MD_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_BR_DATE = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b")
+
+
+def _plain(text: str) -> str:
+    """Texto de uma linha só: sem links/ênfase Markdown e com espaços colapsados."""
+    text = _MD_LINK.sub(r"\1", text)
+    text = text.replace("*", "").replace("`", "")
+    return " ".join(text.split())
+
+
+def _heading(lines: list, prefix: str) -> tuple:
+    """(índice, texto) do primeiro título com o prefixo dado (`# `, `## `), ou (None, "")."""
+    for index, line in enumerate(lines):
+        if line.startswith(prefix):
+            return index, _plain(line[len(prefix):])
+
+    return None, ""
+
+
+def _fold(text: str) -> str:
+    """Minúsculas sem acentos, para casar palavras-chave."""
+    decomposed = unicodedata.normalize("NFD", text.lower())
+    return "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+
+
+def _keyword_hits(text: str, keywords: list) -> int:
+    """Total de ocorrências (palavra inteira) das palavras-chave no texto."""
+    return sum(len(re.findall(rf"\b{re.escape(word)}\b", text)) for word in keywords)
+
+
+def guess_category(title: str, subtitle: str, body: str) -> str:
+    """Categoria por palavras-chave (título/subtítulo pesam 3×); padrão: finanças."""
+    head = _fold(f"{title} {subtitle}")
+    rest = _fold(body)
+    scores = {
+        category: 3 * _keyword_hits(head, words) + _keyword_hits(rest, words)
+        for category, words in _CATEGORY_KEYWORDS.items()
+    }
+    best = max(scores.values())
+
+    if best == 0:
+        return _DEFAULT_CATEGORY
+
+    return next(category for category, score in scores.items() if score == best)
+
+
+def article_date(original: str) -> str:
+    """Primeira data `DD/MM/AAAA` do texto, como `DD-MM-AAAA` (vazio se não houver)."""
+    match = _BR_DATE.search(original)
+
+    if not match:
+        return ""
+
+    day, month, year = match.groups()
+    return f"{day}-{month}-{year}"
+
+
+def formatted(url: str, date_br: str, original: str) -> str:
+    """Original do Docling com frontmatter completo (title/subtitle/url/date/category).
+
+    `title`/`subtitle` vêm dos primeiros `#`/`##`, que saem do corpo; `date` é a data informada
+    no upload, ou a primeira data do texto; `category` vem de `guess_category`.
+    """
+    lines = original.splitlines()
+    title_at, title = _heading(lines, "# ")
+    subtitle_at, subtitle = _heading(lines, "## ")
+    dropped = {index for index in (title_at, subtitle_at) if index is not None}
+    body = "\n".join(line for i, line in enumerate(lines) if i not in dropped).strip()
+
+    return (
+        "---\n"
+        f"title: {title}\n"
+        f"subtitle: {subtitle}\n"
+        f"url: {url}\n"
+        f"date: {date_br or article_date(original)}\n"
+        f"category: {guess_category(title, subtitle, body)}\n"
+        "---\n"
+        "\n"
+        f"{body}\n"
+    )
 
 
 def is_example(text: str) -> bool:
