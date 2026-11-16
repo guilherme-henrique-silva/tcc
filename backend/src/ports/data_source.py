@@ -121,9 +121,30 @@ class StoragePort(ABC):
         pass
 
     @abstractmethod
-    def finish_pipeline_proc(self, proc_id: str, end_ts: datetime) -> None:
-        """Stamp PROC_TS_END on the PIPELINE_PROC_ID row when execution ends."""
+    def finish_pipeline_proc(
+        self,
+        proc_id: str,
+        end_ts: datetime,
+        status: Optional[str] = None,
+        result: Optional[Dict] = None,
+    ) -> None:
+        """Stamp PROC_TS_END (e, quando informados, STATUS/RESULT) when execution ends."""
         pass
+
+    # --- Recarga de execuções anteriores ------------------
+    # Não abstratos: adapters sem histórico (ex.: CSV) herdam o "nada a recarregar".
+
+    def get_pipeline_proc(self, proc_id: str) -> Optional[PipelineProcRecord]:
+        """Return the PIPELINE_PROC_ID row for ``proc_id``, or None."""
+        return None
+
+    def list_pipeline_procs(self, limit: int = 20) -> List[PipelineProcRecord]:
+        """Return the most recent executions first (at most ``limit``)."""
+        return []
+
+    def list_proc_news_by_proc_id(self, proc_id: str) -> List[ProcNewsRecord]:
+        """Return the PIPELINE_PROC_NEWS rows tagged with ``proc_id``."""
+        return []
 
     # --- Documentos tratados -----------------------------
 

@@ -16,6 +16,14 @@ _PROC_NEWS_COLUMNS = frozenset(
     {"URL", "PROC_ID", "PROC_TS", "NM_SITE", "PROC_SUCCESS", "NEWS_DATE", "NEWS_TIME"}
 )
 
+# Colunas de PIPELINE_PROC_ID acrescentadas para recarregar uma execução (migração).
+_PROC_RESTORE_COLUMNS = ("STATUS", "DATE_START", "DATE_END", "REQUEST", "RESULT")
+
+# Ordem usada nos SELECTs de PIPELINE_PROC_ID (casa com `_row_to_pipeline_proc`).
+_PROC_COLUMNS = (
+    "PROC_ID, PROC_TS_START, PROC_TS_END, STATUS, DATE_START, DATE_END, REQUEST, RESULT"
+)
+
 logger = get_logger(__name__)
 
 
@@ -202,41 +210,154 @@ class SQLiteStorage(StoragePort):
 
             cursor.execute(
                 """
-                INSERT INTO PIPELINE_PROC_ID (PROC_ID, PROC_TS_START, PROC_TS_END)
-                VALUES (?, ?, ?)
+                INSERT INTO PIPELINE_PROC_ID
+                    (PROC_ID, PROC_TS_START, PROC_TS_END, STATUS,
+                     DATE_START, DATE_END, REQUEST, RESULT)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(PROC_ID) DO UPDATE SET
                     PROC_TS_START = excluded.PROC_TS_START,
-                    PROC_TS_END = excluded.PROC_TS_END
+                    PROC_TS_END = excluded.PROC_TS_END,
+                    STATUS = excluded.STATUS,
+                    DATE_START = excluded.DATE_START,
+                    DATE_END = excluded.DATE_END,
+                    REQUEST = excluded.REQUEST,
+                    RESULT = excluded.RESULT
                 """,
                 (
                     record.proc_id,
                     record.proc_ts_start.isoformat(),
                     record.proc_ts_end.isoformat() if record.proc_ts_end else None,
+                    record.status,
+                    record.date_start.isoformat() if record.date_start else None,
+                    record.date_end.isoformat() if record.date_end else None,
+                    self._dump_json(record.request),
+                    self._dump_json(record.result),
                 ),
             )
 
             conn.commit()
             conn.close()
 
-        except sqlite3.Error:
-            pass
+        except (sqlite3.Error, TypeError, ValueError) as exc:
+            logger.error("Falha ao registrar a execução (PROC_ID=%s): %s", record.proc_id, exc)
 
-    def finish_pipeline_proc(self, proc_id: str, end_ts: datetime) -> None:
-        """Stamp PROC_TS_END when execution ends, success or failure."""
+    def finish_pipeline_proc(
+        self,
+        proc_id: str,
+        end_ts: datetime,
+        status: Optional[str] = None,
+        result: Optional[Dict] = None,
+    ) -> None:
+        """Stamp PROC_TS_END (and STATUS/RESULT when given) when execution ends."""
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
 
             cursor.execute(
-                "UPDATE PIPELINE_PROC_ID SET PROC_TS_END = ? WHERE PROC_ID = ?",
-                (end_ts.isoformat(), proc_id),
+                "UPDATE PIPELINE_PROC_ID SET PROC_TS_END = ?, "
+                "STATUS = COALESCE(?, STATUS), RESULT = COALESCE(?, RESULT) "
+                "WHERE PROC_ID = ?",
+                (end_ts.isoformat(), status, self._dump_json(result), proc_id),
             )
 
             conn.commit()
             conn.close()
 
-        except sqlite3.Error:
-            pass
+        except (sqlite3.Error, TypeError, ValueError) as exc:
+            logger.error("Falha ao encerrar a execução (PROC_ID=%s): %s", proc_id, exc)
+
+    def get_pipeline_proc(self, proc_id: str) -> Optional[PipelineProcRecord]:
+        """Retrieve one execution by PROC_ID, or None."""
+        try:
+            conn = self._get_connection()
+            row = conn.execute(
+                f"SELECT {_PROC_COLUMNS} FROM PIPELINE_PROC_ID WHERE PROC_ID = ?",
+                (proc_id,),
+            ).fetchone()
+            conn.close()
+
+            return self._row_to_pipeline_proc(row) if row else None
+
+        except (sqlite3.Error, ValueError) as exc:
+            logger.error("Falha ao ler a execução (PROC_ID=%s): %s", proc_id, exc)
+            return None
+
+    def list_pipeline_procs(self, limit: int = 20) -> List[PipelineProcRecord]:
+        """List executions, most recent first."""
+        try:
+            conn = self._get_connection()
+            rows = conn.execute(
+                f"SELECT {_PROC_COLUMNS} FROM PIPELINE_PROC_ID "
+                "ORDER BY PROC_TS_START DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            conn.close()
+
+            return [self._row_to_pipeline_proc(row) for row in rows]
+
+        except (sqlite3.Error, ValueError) as exc:
+            logger.error("Falha ao listar as execuções: %s", exc)
+            return []
+
+    def list_proc_news_by_proc_id(self, proc_id: str) -> List[ProcNewsRecord]:
+        """List the PIPELINE_PROC_NEWS rows last tagged with ``proc_id``, oldest date first."""
+        try:
+            conn = self._get_connection()
+            rows = conn.execute(
+                "SELECT URL, PROC_ID, PROC_TS, NM_SITE, PROC_SUCCESS, NEWS_DATE, NEWS_TIME "
+                "FROM PIPELINE_PROC_NEWS WHERE PROC_ID = ? ORDER BY NEWS_DATE, NEWS_TIME, URL",
+                (proc_id,),
+            ).fetchall()
+            conn.close()
+
+            return [ProcNewsRecord.from_row(self._proc_news_row_to_dict(r)) for r in rows]
+
+        except (sqlite3.Error, ValueError) as exc:
+            logger.error("Falha ao listar notícias da execução (PROC_ID=%s): %s", proc_id, exc)
+            return []
+
+    def _proc_news_row_to_dict(self, row) -> Dict[str, object]:
+        """Map a PIPELINE_PROC_NEWS row tuple into a column dict."""
+        return {
+            "URL": row[0],
+            "PROC_ID": row[1],
+            "PROC_TS": row[2],
+            "NM_SITE": row[3],
+            "PROC_SUCCESS": row[4],
+            "NEWS_DATE": row[5],
+            "NEWS_TIME": row[6],
+        }
+
+    def _row_to_pipeline_proc(self, row) -> PipelineProcRecord:
+        """Map a PIPELINE_PROC_ID row tuple (ordem de _PROC_COLUMNS) into the record."""
+        return PipelineProcRecord.from_row(
+            {
+                "PROC_ID": row[0],
+                "PROC_TS_START": row[1],
+                "PROC_TS_END": row[2],
+                "STATUS": row[3],
+                "DATE_START": row[4],
+                "DATE_END": row[5],
+                "REQUEST": self._load_json(row[6]),
+                "RESULT": self._load_json(row[7]),
+            }
+        )
+
+    @staticmethod
+    def _dump_json(value: Optional[Dict]) -> Optional[str]:
+        """JSON text for a nullable dict column (None stays NULL)."""
+        return None if value is None else json.dumps(value)
+
+    @staticmethod
+    def _load_json(text: Optional[str]) -> Optional[Dict]:
+        """Inverse of ``_dump_json``; unreadable JSON is treated as absent."""
+        if not text:
+            return None
+
+        try:
+            return json.loads(text)
+        except ValueError:
+            return None
 
     def save_treated_news(self, record: TreatedNewsRecord) -> None:
         """Persist a treated news document with its frontmatter metadata."""
@@ -382,9 +503,29 @@ class SQLiteStorage(StoragePort):
             CREATE TABLE IF NOT EXISTS PIPELINE_PROC_ID (
                 PROC_ID       TEXT      PRIMARY KEY,
                 PROC_TS_START TIMESTAMP NOT NULL,
-                PROC_TS_END   TIMESTAMP
+                PROC_TS_END   TIMESTAMP,
+                STATUS        TEXT,
+                DATE_START    TEXT,
+                DATE_END      TEXT,
+                REQUEST       TEXT,
+                RESULT        TEXT
             )
         """)
+        self._migrate_pipeline_proc_schema(cursor)
+
+    def _migrate_pipeline_proc_schema(self, cursor) -> None:
+        """Add the run-restore columns to a pre-existing PIPELINE_PROC_ID (idempotente).
+
+        Preserva as execuções antigas: elas ficam com as novas colunas NULL e são
+        recarregadas pelo fallback de ``RunRestoreService``.
+        """
+        columns = {row[1] for row in cursor.execute(
+            "PRAGMA table_info(PIPELINE_PROC_ID)"
+        ).fetchall()}
+
+        for name in _PROC_RESTORE_COLUMNS:
+            if name not in columns:
+                cursor.execute(f"ALTER TABLE PIPELINE_PROC_ID ADD COLUMN {name} TEXT")
 
     def _create_proc_news_table(self, cursor) -> None:
         """Create PIPELINE_PROC_NEWS, recreating it when the schema is outdated."""

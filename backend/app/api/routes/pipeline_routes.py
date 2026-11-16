@@ -1,6 +1,6 @@
 """Pipeline control routes."""
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, Query, status, Depends
 from typing import Optional, List, Set
 import threading
 import uuid
@@ -12,6 +12,8 @@ from app.api.schemas import (
     PipelineStatusResponse,
     PipelineRunResponse,
     StageResultDTO,
+    RunSummaryDTO,
+    RunStateDTO,
     ProcNewsDTO,
     GrangerReportResponse,
     ConvertLinkRequest,
@@ -29,6 +31,7 @@ from app.core.logger import get_logger
 from app.core.exceptions import PipelineException
 from app.core.config import Config
 from src.domain.models import TreatedNewsRecord
+from src.domain.services.run_restore_service import RunRestoreService
 from src.pipeline import DataPipeline, DependencyContainer, StageName
 from persistence.checkpoint_manager import CheckpointManager
 
@@ -77,6 +80,35 @@ async def execute_pipeline(request: PipelineExecuteRequest):
     )
 
     return _to_run_response(result)
+
+
+@router.get("/runs", response_model=List[RunSummaryDTO])
+async def list_runs(limit: int = Query(20, ge=1, le=100)):
+    """Lista as execuções já iniciadas (mais recente primeiro) para recarregar uma delas."""
+    return _run_restore().list_runs(limit)
+
+
+@router.get("/runs/latest", response_model=Optional[RunStateDTO])
+async def get_latest_run():
+    """Estado da execução mais recente, ou ``null`` quando nunca houve execução.
+
+    Declarada antes de ``/runs/{proc_id}`` para que "latest" não seja lido como um id.
+    """
+    return _run_restore().get_run()
+
+
+@router.get("/runs/{proc_id}", response_model=RunStateDTO)
+async def get_run(proc_id: str):
+    """Estado completo de uma execução anterior (links, resultado, tratadas, Granger)."""
+    state = _run_restore().get_run(proc_id)
+
+    if state is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run not found: {proc_id}",
+        )
+
+    return state
 
 
 @router.get("/proc_news", response_model=Optional[ProcNewsDTO])
@@ -250,6 +282,11 @@ async def list_checkpoints():
 
 
 # Helper functions
+
+def _run_restore() -> RunRestoreService:
+    """Serviço de recarga de execuções sobre o storage do container."""
+    return RunRestoreService(_container.get_storage())
+
 
 def _downloads_in_progress() -> Set[str]:
     """Snapshot dos caminhos de modelos em download."""

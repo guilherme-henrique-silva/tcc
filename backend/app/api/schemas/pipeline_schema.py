@@ -101,6 +101,39 @@ class PipelineRunResponse(BaseModel):
     pending_treatment_urls: Optional[List[str]] = None
 
 
+class RunSummaryDTO(BaseModel):
+    """DTO for one entry of the execution history (PIPELINE_PROC_ID)."""
+    proc_id: str
+    status: str = Field(
+        ...,
+        description="RUNNING, SUCCESS, FAILED, BLOCKED or UNKNOWN (execução anterior ao registro de status).",
+    )
+    started_at: str
+    finished_at: Optional[str] = None
+    date_start: Optional[str] = Field(None, description="Início do período analisado (ISO).")
+    date_end: Optional[str] = Field(None, description="Fim do período analisado (ISO).")
+    news_links_count: int = 0
+
+
+class RunStateDTO(RunSummaryDTO):
+    """DTO with everything the frontend needs to reload a previous execution."""
+    enabled_stages: Optional[List[str]] = Field(
+        None, description="Etapas habilitadas na execução (None = todas ou desconhecido)."
+    )
+    news_links: Dict[str, List[Union[str, Dict[str, str]]]] = Field(
+        default_factory=dict,
+        description="Links da execução agrupados por data de publicação (formato do upload).",
+    )
+    treated_news: Dict[str, str] = Field(
+        default_factory=dict,
+        description="URL -> Markdown tratado, para as URLs da execução que já foram tratadas.",
+    )
+    run_result: Optional[PipelineRunResponse] = Field(
+        None, description="Resultado por etapa; None quando a execução não chegou a concluir."
+    )
+    has_granger_report: bool = False
+
+
 class ProcNewsDTO(BaseModel):
     """DTO for a PIPELINE_PROC_NEWS record."""
     URL: str

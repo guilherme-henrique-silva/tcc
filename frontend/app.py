@@ -4,8 +4,9 @@ from datetime import date
 
 import streamlit as st
 
-from api_client import APIClient
+from api_client import APIClient, api_error_message
 from env_config import get_date_range
+from components import run_restore as rr
 from components.theme import apply_theme
 
 st.set_page_config(
@@ -19,15 +20,103 @@ apply_theme()
 
 
 def _render_sidebar() -> None:
-    """Sidebar compartilhada: período de análise e verificação de status."""
+    """Sidebar compartilhada: execução carregada, período de análise e status."""
     with st.sidebar:
         st.header("⚙️ Configuração")
+
+        st.subheader("Execução carregada")
+        _render_run_restore()
 
         st.subheader("Período de Análise")
         _render_date_range()
 
         st.subheader("Status dos serviços")
         _render_status_check()
+
+
+def _restore_latest_run_once() -> None:
+    """Na primeira renderização da sessão, recarrega a execução mais recente do backend.
+
+    Sem isso, reiniciar os serviços deixa a sessão vazia mesmo com tudo salvo no banco.
+    Roda antes da sidebar para que o período restaurado entre no seletor de datas. Falha
+    de conexão não bloqueia a UI: o aviso aparece na sidebar e há o botão de recarga.
+    """
+    if st.session_state.get("run_restore_attempted"):
+        return
+
+    st.session_state["run_restore_attempted"] = True
+
+    try:
+        state = APIClient().get_latest_run()
+    except Exception as e:  # noqa: BLE001
+        st.session_state["run_restore_notice"] = (
+            "warning", f"Não foi possível recarregar a última execução: {api_error_message(e)}"
+        )
+        return
+
+    if state:
+        rr.apply_to_session(st.session_state, state)
+
+
+def _load_run(proc_id: str) -> None:
+    """Callback do botão: recarrega a execução escolhida (roda antes do rerun, então pode
+    alterar também o estado de widgets, como o seletor de período)."""
+    try:
+        state = APIClient().get_run(proc_id)
+    except Exception as e:  # noqa: BLE001
+        st.session_state["run_restore_notice"] = (
+            "error", f"Não foi possível carregar a execução: {api_error_message(e)}"
+        )
+        return
+
+    rr.apply_to_session(st.session_state, state)
+    st.session_state["run_restore_notice"] = ("success", "Execução carregada.")
+
+
+def _refresh_runs_list() -> None:
+    """Callback do botão: consulta o histórico de execuções no backend."""
+    try:
+        st.session_state["runs_list"] = APIClient().list_runs()
+    except Exception as e:  # noqa: BLE001
+        st.session_state["run_restore_notice"] = (
+            "error", f"Não foi possível listar as execuções: {api_error_message(e)}"
+        )
+
+
+def _render_run_restore() -> None:
+    """Mostra a execução carregada e permite escolher outra do histórico."""
+    notice = st.session_state.pop("run_restore_notice", None)
+    if notice:
+        getattr(st, notice[0])(notice[1])
+
+    loaded = st.session_state.get(rr.LOADED_RUN_KEY)
+    if loaded:
+        st.caption(rr.describe(loaded))
+    else:
+        st.caption("Nenhuma execução carregada — a sessão começa vazia.")
+
+    with st.expander("📂 Execuções anteriores"):
+        st.button("🔄 Listar execuções", on_click=_refresh_runs_list, key="list_runs_btn")
+
+        runs = st.session_state.get("runs_list") or []
+        if not runs:
+            st.caption("Clique em *Listar execuções* para consultar o histórico.")
+            return
+
+        by_id = {run["proc_id"]: run for run in runs}
+        chosen = st.selectbox(
+            "Execução",
+            options=list(by_id),
+            format_func=lambda proc_id: rr.run_label(by_id[proc_id]),
+            key="run_restore_choice",
+        )
+        st.button(
+            "📥 Carregar execução",
+            on_click=_load_run,
+            args=(chosen,),
+            key="load_run_btn",
+            use_container_width=True,
+        )
 
 
 def _render_date_range() -> None:
@@ -56,12 +145,16 @@ def _render_date_range() -> None:
         current_end = today
         st.warning("Data final ajustada para hoje (não é possível selecionar datas futuras).")
 
+    # `value` só na 1ª renderização: com a chave já no estado (inclusive quando a recarga de
+    # uma execução a preenche) passar `value` dispara o aviso do Streamlit.
+    initial = {} if "global_date_range" in st.session_state else {"value": (current_start, current_end)}
+
     st.date_input(
         "Selecione o intervalo de datas",
-        value=(current_start, current_end),
         min_value=acoes_start,
         max_value=today,
         key="global_date_range",
+        **initial,
     )
 
 
@@ -97,6 +190,7 @@ def _check_database(client: APIClient, slot) -> None:
         slot.error(f"Banco indisponível: {e}")
 
 
+_restore_latest_run_once()
 _render_sidebar()
 
 pages = [

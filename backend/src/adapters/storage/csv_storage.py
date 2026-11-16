@@ -87,7 +87,13 @@ class CsvStorage(StoragePort):
         """Not persisted by the CSV adapter (feature export only)."""
         return None
 
-    def finish_pipeline_proc(self, proc_id: str, end_ts: datetime) -> None:
+    def finish_pipeline_proc(
+        self,
+        proc_id: str,
+        end_ts: datetime,
+        status: Optional[str] = None,
+        result: Optional[Dict] = None,
+    ) -> None:
         """Not persisted by the CSV adapter (feature export only)."""
         return None
 

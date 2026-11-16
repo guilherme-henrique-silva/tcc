@@ -21,6 +21,7 @@ from src.pipeline.stages import (
 )
 from src.pipeline.dependency_container import DependencyContainer
 from src.domain.models import PipelineProcRecord
+from src.domain.models.pipeline_proc import STATUS_FAILED, STATUS_RUNNING
 from persistence.checkpoint_manager import CheckpointManager
 from app.core.config import Config
 from app.core.logger import get_logger
@@ -51,6 +52,22 @@ class PipelineResult:
     error_message: Optional[str] = None
     checkpoint_id: Optional[str] = None
     pending_treatment_urls: Optional[List[str]] = None
+
+    def to_summary(self) -> Dict[str, Any]:
+        """Resultado em JSON puro — é o que `PIPELINE_PROC_ID.RESULT` guarda para recarga."""
+        return {
+            "stages_executed": list(self.stages_executed),
+            "stage_results": {
+                name: {
+                    "stage_name": stage_result.stage_name,
+                    "status": stage_result.status,
+                    "error_message": stage_result.error_message,
+                }
+                for name, stage_result in self.stage_results.items()
+            },
+            "error_message": self.error_message,
+            "pending_treatment_urls": self.pending_treatment_urls,
+        }
 
 
 class DataPipeline:
@@ -97,7 +114,19 @@ class DataPipeline:
         Returns PipelineResult with per-stage SUCCESS/SKIPPED/FAILED status.
         """
         overall_start = datetime.now()
-        self._record_run_start(overall_start)
+        self._record_run_start(
+            overall_start,
+            date_range_start,
+            date_range_end,
+            self._request_snapshot(
+                enabled_stages,
+                news_links,
+                use_llm_treatment,
+                treatment_model_path,
+                discarded_news_urls,
+            ),
+        )
+        result: Optional[PipelineResult] = None
 
         try:
             input_data = self._create_initial_input(
@@ -110,53 +139,66 @@ class DataPipeline:
                 discarded_news_urls,
             )
 
-            stage_results: Dict[str, PipelineStageResult] = {}
-            stages_executed: List[str] = []
-
-            for stage in self._stages:
-                if self._is_stage_disabled(stage, enabled_stages):
-                    stage_results[stage.stage_name] = stage.create_skipped_result()
-                    stages_executed.append(stage.stage_name)
-                    self.logger.info(f"Stage {stage.stage_name} SKIPPED (feature toggle)")
-                    continue
-
-                stage_result = self._execute_stage(stage, input_data, on_substage)
-
-                stage_results[stage.stage_name] = stage_result
-                stages_executed.append(stage.stage_name)
-
-                if stage_result.status == "BLOCKED":
-                    pending_urls = (stage_result.data or {}).get(
-                        "pending_treatment_urls", []
-                    )
-                    return self._create_blocked_result(
-                        overall_start,
-                        datetime.now(),
-                        stages_executed,
-                        stage_results,
-                        pending_urls,
-                    )
-
-                if stage_result.status == "FAILED":
-                    return self._create_failed_result(
-                        overall_start,
-                        datetime.now(),
-                        stages_executed,
-                        stage_results,
-                        stage_result.error_message,
-                    )
-
-                input_data = self._merge_stage_output(input_data, stage_result.data)
-
-            return self._create_success_result(
-                overall_start,
-                datetime.now(),
-                stages_executed,
-                stage_results,
+            result = self._run_stages(
+                input_data, enabled_stages, on_substage, overall_start
             )
+            return result
 
         finally:
-            self._record_run_end(datetime.now())
+            self._record_run_end(datetime.now(), result)
+
+    def _run_stages(
+        self,
+        input_data: Dict[str, Any],
+        enabled_stages: Optional[Set[StageName]],
+        on_substage: Optional[ProgressCallback],
+        overall_start: datetime,
+    ) -> PipelineResult:
+        """Run the stages in order, stopping at the first BLOCKED/FAILED one."""
+        stage_results: Dict[str, PipelineStageResult] = {}
+        stages_executed: List[str] = []
+
+        for stage in self._stages:
+            if self._is_stage_disabled(stage, enabled_stages):
+                stage_results[stage.stage_name] = stage.create_skipped_result()
+                stages_executed.append(stage.stage_name)
+                self.logger.info(f"Stage {stage.stage_name} SKIPPED (feature toggle)")
+                continue
+
+            stage_result = self._execute_stage(stage, input_data, on_substage)
+
+            stage_results[stage.stage_name] = stage_result
+            stages_executed.append(stage.stage_name)
+
+            if stage_result.status == "BLOCKED":
+                pending_urls = (stage_result.data or {}).get(
+                    "pending_treatment_urls", []
+                )
+                return self._create_blocked_result(
+                    overall_start,
+                    datetime.now(),
+                    stages_executed,
+                    stage_results,
+                    pending_urls,
+                )
+
+            if stage_result.status == "FAILED":
+                return self._create_failed_result(
+                    overall_start,
+                    datetime.now(),
+                    stages_executed,
+                    stage_results,
+                    stage_result.error_message,
+                )
+
+            input_data = self._merge_stage_output(input_data, stage_result.data)
+
+        return self._create_success_result(
+            overall_start,
+            datetime.now(),
+            stages_executed,
+            stage_results,
+        )
 
     def resume_from_checkpoint(self, checkpoint_id: str) -> PipelineResult:
         """Resume pipeline from saved checkpoint."""
@@ -202,18 +244,63 @@ class DataPipeline:
 
         return True
 
-    def _record_run_start(self, start_time: datetime) -> None:
-        """Persist a PIPELINE_PROC_ID row for this execution."""
+    def _record_run_start(
+        self,
+        start_time: datetime,
+        date_range_start,
+        date_range_end,
+        request: Dict[str, Any],
+    ) -> None:
+        """Persist a PIPELINE_PROC_ID row with the run inputs, so it can be reloaded later."""
         record = PipelineProcRecord(
             proc_id=self.pipeline_id,
             proc_ts_start=start_time,
             proc_ts_end=None,
+            status=STATUS_RUNNING,
+            date_start=date_range_start,
+            date_end=date_range_end,
+            request=request,
         )
         self.container.get_storage().save_pipeline_proc(record)
 
-    def _record_run_end(self, end_time: datetime) -> None:
-        """Stamp PROC_TS_END once the execution ends, success or failure."""
-        self.container.get_storage().finish_pipeline_proc(self.pipeline_id, end_time)
+    def _record_run_end(
+        self,
+        end_time: datetime,
+        result: Optional[PipelineResult] = None,
+    ) -> None:
+        """Stamp the end, final status and result once the execution ends.
+
+        ``result`` é None quando uma exceção inesperada escapou das etapas: a execução
+        fica registrada como FAILED em vez de presa em RUNNING.
+        """
+        status = result.status if result else STATUS_FAILED
+        summary = result.to_summary() if result else None
+
+        self.container.get_storage().finish_pipeline_proc(
+            self.pipeline_id, end_time, status=status, result=summary
+        )
+
+    def _request_snapshot(
+        self,
+        enabled_stages: Optional[Set[StageName]],
+        news_links: Optional[Dict[str, list]],
+        use_llm_treatment: bool,
+        treatment_model_path: Optional[str],
+        discarded_news_urls: Optional[List[str]],
+    ) -> Dict[str, Any]:
+        """Entradas da execução em JSON puro (`PIPELINE_PROC_ID.REQUEST`)."""
+        stages = (
+            None
+            if enabled_stages is None
+            else sorted(self._stage_value(name) for name in enabled_stages)
+        )
+        return {
+            "enabled_stages": stages,
+            "news_links": news_links or {},
+            "use_llm_treatment": use_llm_treatment,
+            "treatment_model_path": treatment_model_path,
+            "discarded_news_urls": discarded_news_urls or [],
+        }
 
     def _initialize_stages(self) -> List:
         """Initialize all pipeline stages, Docling as stage 0 (ordem: docs/PIPELINE.md)."""

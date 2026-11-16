@@ -271,7 +271,8 @@ with tab_acoes:
     )
 
     today = date.today()
-    default_start, default_end = get_date_range()
+    # Parte do período da sessão (ex.: o de uma execução recarregada); sem ele, do .env.
+    default_start, default_end = st.session_state.get("date_range") or get_date_range()
 
     col1, col2 = st.columns(2)
     with col1:

@@ -3,6 +3,39 @@
 Todas as mudanças relevantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Não lançado] — Recarga de execuções
+
+Ao parar e subir de novo os microsserviços, o frontend abria vazio mesmo com tudo salvo em
+`data/pipeline.db`: links, período e resultado da execução viviam só no `session_state`.
+
+### Adicionado
+- **Backend**: `PIPELINE_PROC_ID` passa a guardar `STATUS`, `DATE_START`/`DATE_END` e dois blocos JSON
+  — `REQUEST` (etapas habilitadas, `news_links`, opções de LLM) e `RESULT` (resultado por etapa, erro,
+  URLs pendentes). Migração idempotente que preserva as execuções antigas. Uma exceção inesperada
+  deixa a execução como `FAILED`, não presa em `RUNNING`.
+- `RunRestoreService` (lê, nunca recalcula) e as rotas `GET /pipeline/runs`, `/runs/latest` e
+  `/runs/{proc_id}`. Execuções anteriores a esta versão têm os links reconstruídos de
+  `PIPELINE_PROC_NEWS` (melhor esforço: uma URL reprocessada passa ao `PROC_ID` mais novo).
+- **Frontend**: a última execução é carregada automaticamente ao abrir a sessão e a sidebar ganha o
+  bloco *Execução carregada* com o histórico para escolher outra. Restaura links, resultado,
+  notícias tratadas, `last_proc_id` e o período.
+
+### Alterado
+- `StoragePort.finish_pipeline_proc` aceita `status`/`result` opcionais; os novos métodos de leitura
+  não são abstratos (adapters sem histórico, como o CSV, devolvem vazio).
+- `DataPipeline.execute` delega o laço das etapas a `_run_stages`, sem mudar o comportamento.
+- Os campos de data da página *Upload de Dados › Ações* partem do período da sessão, e o seletor da
+  sidebar só recebe `value` na primeira renderização (evita o aviso do Streamlit).
+
+### Limitações conhecidas
+- O Markdown **original** (pós-Docling) não é persistido: continua sendo recarregado sob demanda em
+  *Tratamento de Notícias › Carregar original*.
+- A página *Executar Pipeline* continua usando o período do `.env`, como antes.
+
+### Testes
+- `backend/tests/test_run_restore.py` (persistência, migração, serviço, pipeline ponta a ponta e
+  rotas) e `frontend/tests/test_run_restore.py`.
+
 ## [Não lançado] — Iteração 5
 
 Links de notícias agrupados por data de publicação: `news_links` deixa de ser uma lista plana e

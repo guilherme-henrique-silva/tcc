@@ -16,7 +16,10 @@ from .modeling_preparation_service import (
     TrainTestSplit,
 )
 
+from .run_restore_service import RunRestoreService
+
 __all__ = [
+    "RunRestoreService",
     "FeatureEngineeringService",
     "StockFeatures",
     "NewsFeatures",

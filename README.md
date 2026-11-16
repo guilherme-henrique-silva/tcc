@@ -123,6 +123,9 @@ Cada etapa habilitada executa; cada etapa desabilitada retorna
 | Método | Rota                       | Descrição                                                   |
 |--------|----------------------------|-------------------------------------------------------------|
 | POST   | `/pipeline/execute`        | Executa a pipeline (recebe `enabled_stages`, `news_links` como objeto *data de publicação → links*, `use_llm_treatment`). `news_links` inválido → 422. |
+| GET    | `/pipeline/runs`           | Histórico de execuções (`?limit=`, mais recente primeiro): id, status, período e nº de links. |
+| GET    | `/pipeline/runs/latest`    | Estado completo da última execução (ou `null`): links por data, resultado por etapa, notícias tratadas e se há relatório de Granger. O frontend o carrega sozinho ao abrir a sessão. |
+| GET    | `/pipeline/runs/{proc_id}` | Mesmo estado, para uma execução específica (404 se não existir). |
 | GET    | `/pipeline/proc_news`      | Consulta `PIPELINE_PROC_NEWS` por URL (de-duplicação).      |
 | GET    | `/pipeline/granger_report` | Relatório de Granger salvo (`?proc_id=`; sem ele, o da última execução). Só lê, não recalcula. |
 | POST   | `/pipeline/convert_link`   | Converte um link em Markdown sob demanda (UI de tratamento). |

@@ -48,6 +48,34 @@ class APIClient:
         response.raise_for_status()
         return response.json()
 
+    def list_runs(self, limit: int = 20) -> List[Dict]:
+        """List the previous pipeline executions, most recent first."""
+        response = requests.get(
+            f"{self.base_url}/api/pipeline/runs",
+            params={"limit": limit},
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_latest_run(self) -> Optional[Dict]:
+        """Full state of the most recent execution, or None when there is none."""
+        response = requests.get(
+            f"{self.base_url}/api/pipeline/runs/latest",
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_run(self, proc_id: str) -> Dict:
+        """Full state (links, result, treated news) of a previous execution."""
+        response = requests.get(
+            f"{self.base_url}/api/pipeline/runs/{proc_id}",
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+
     def get_proc_news(self, url: str) -> Optional[Dict]:
         """Return the PIPELINE_PROC_NEWS record for a URL, or None."""
         response = requests.get(
