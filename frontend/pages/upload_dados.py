@@ -84,7 +84,8 @@ with tab_links:
     with st.expander("📥 Importar JSON (data → links)"):
         st.caption(
             'Formato: `{"2026-11-03": ["https://...", {"url": "https://...", "time": "18:42"}], '
-            '"2026-11-04": ["https://..."]}` — `time` é opcional (HH:MM, horário de Brasília).'
+            '"2026-11-04": ["https://..."]}` — `time` é opcional (HH:MM, horário de Brasília). '
+            'O mesmo mapa embrulhado em `{"news_links": {...}}` também é aceito.'
         )
         json_text = st.text_area("Cole o JSON", key="news_links_json_text", height=140)
         json_file = st.file_uploader("ou envie um arquivo .json", type="json", key="news_links_json_file")

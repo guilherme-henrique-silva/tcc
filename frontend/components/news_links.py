@@ -148,7 +148,8 @@ def remove_link(groups: NewsLinks, day: str, url: str) -> NewsLinks:
 def parse_json(text: str, today: Optional[date] = None) -> NewsLinks:
     """Importa o JSON ``{"YYYY-MM-DD": [item, ...]}`` aplicando as regras do backend.
 
-    Cada item é uma URL ou ``{"url": ..., "time": "HH:MM"}``. Texto vazio gera ``{}``.
+    Cada item é uma URL ou ``{"url": ..., "time": "HH:MM"}``. O mapa pode vir embrulhado em
+    ``{"news_links": {...}}`` (formato do corpo da API). Texto vazio gera ``{}``.
     Qualquer violação levanta ``ValueError`` (PT-BR), sem efeito colateral — quem chama
     decide se substitui o estado da sessão.
     """
@@ -165,6 +166,8 @@ def parse_json(text: str, today: Optional[date] = None) -> NewsLinks:
             'O JSON deve ser um objeto no formato {"YYYY-MM-DD": ["url", ...]}; '
             "listas de links não são aceitas."
         )
+
+    payload = _unwrap_envelope(payload)
 
     groups: NewsLinks = {}
     for raw_day, value in payload.items():
@@ -230,6 +233,20 @@ def _upsert(bucket: List[Item], url: str, when: Optional[str]) -> None:
         return
 
     bucket.append(make_item(url, when))
+
+
+def _unwrap_envelope(payload: dict) -> dict:
+    """Aceita também o formato do corpo da API: ``{"news_links": {"YYYY-MM-DD": [...]}}``.
+
+    O envelope só é removido quando é a única chave e seu valor é um objeto; qualquer outro
+    caso segue para a validação normal (que recusa ``news_links`` como se fosse uma data).
+    """
+    inner = payload.get("news_links")
+
+    if len(payload) == 1 and isinstance(inner, dict):
+        return inner
+
+    return payload
 
 
 def _json_item(raw_day: str, item: object) -> Item:

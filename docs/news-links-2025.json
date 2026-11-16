@@ -201,9 +201,6 @@
             {"url": "https://www.cnnbrasil.com.br/noticias/pensionistas-da-previ-contestam-gestao-fukunaga-e-apoiam-auditoria-do-tcu/", "time": "21:00"},
             {"url": "https://www.metropoles.com/colunas/fabia-oliveira/ana-hickmann-nova-pericia-comprova-que-assinaturas-sao-falsas", "time": "10:47"}
         ],
-        "2025-03-21": [
-            {"url": "https://www.metropoles.com/negocios/aplicativo-do-banco-do-brasil-fica-fora-do-ar-e-usuarios-reclamam", "time": "12:53"}
-        ],
         "2025-03-24": [
             {"url": "https://www.estadao.com.br/einvestidor/radar/saque-pis-pasep-2025-onde-retirar-quais-documentos/", "time": "13:25"},
             {"url": "https://g1.globo.com/politica/noticia/2025/03/24/empresa-de-seguros-do-banco-do-brasil-tem-denuncias-de-assedio-e-desmonte-de-setor-anticorrupcao.ghtml", "time": "08:43"}
@@ -217,8 +214,7 @@
             {"url": "https://www.estadao.com.br/einvestidor/onde-investir/banco-do-brasil-fundos-investimentos-geracao-alpha/", "time": "12:21"}
         ],
         "2025-03-28": [
-            {"url": "https://www.cnnbrasil.com.br/noticias/banco-do-brasil-lanca-dez-novos-fundos-voltados-a-publico-de-8-a-17-anos/", "time": "15:41"},
-            {"url": "https://www.estadao.com.br/einvestidor/onde-investir/vale-vale3-ou-banco-do-brasil-bbas3-quem-pagou-mais-dividendos-na-ultima-decada-e-como-fica-2025/", "time": "09:40"}
+            {"url": "https://www.cnnbrasil.com.br/noticias/banco-do-brasil-lanca-dez-novos-fundos-voltados-a-publico-de-8-a-17-anos/", "time": "15:41"}
         ],
         "2025-03-29": [
             {"url": "https://g1.globo.com/economia/noticia/2025/03/29/banco-do-brasil-concedeu-r-600-milhoes-em-emprestimos-desde-lancamento-do-consignado-clt.ghtml", "time": "10:12"},

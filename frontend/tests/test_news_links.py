@@ -134,6 +134,28 @@ def test_parse_json_object_without_time_is_normalized_to_a_string():
     }
 
 
+def test_parse_json_accepts_news_links_envelope():
+    text = '{"news_links": {"2026-11-03": ["https://g1/a", {"url": "https://info/b", "time": "18:42"}]}}'
+
+    assert nl.parse_json(text, TODAY) == {"2026-11-03": [A, T]}
+
+
+def test_parse_json_empty_envelope():
+    assert nl.parse_json('{"news_links": {}}', TODAY) == {}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"news_links": ["https://g1/a"]}',
+        '{"news_links": {"2026-11-03": ["https://g1/a"]}, "outra": 1}',
+    ],
+)
+def test_parse_json_rejects_malformed_envelope(text):
+    with pytest.raises(ValueError):
+        nl.parse_json(text, TODAY)
+
+
 @pytest.mark.parametrize(
     "item",
     [

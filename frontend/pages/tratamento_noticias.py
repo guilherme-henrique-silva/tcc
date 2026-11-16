@@ -4,6 +4,7 @@ import streamlit as st
 
 from api_client import APIClient
 from components import news_links as nl
+from components import treatment_template as tpl
 from components.context import context_block
 
 try:
@@ -38,41 +39,6 @@ st.session_state.setdefault("orig_md", {})
 st.session_state.setdefault("treated_md", {})
 originals = st.session_state["orig_md"]
 treated = st.session_state["treated_md"]
-
-# Exemplo de saída BRUTA do Docling (sem frontmatter — coluna esquerda "original")
-_TEMPLATE_ORIGINAL = """\
-# Banco do Brasil fora do ar? Aplicativo tem instabilidade e clientes reclamam nas redes
-
-## Segundo o site DownDetector, que monitora interrupções em serviços online, aplicativo chegou a ter mais de 2,5 mil pela manhã. Banco normalizou os serviços por volta das 15h20.
-
-Por [Redação g1](https://g1.globo.com/autores/redacao-g1/) - São Paulo
-
-10/06/2026 11h44 Atualizado 10/06/2026
-
-Agência do Banco do Brasil de Caruaru, no Agreste de Pernambuco - Foto: Reprodução/Google Street View
-
-O aplicativo do Banco do Brasil passou por instabilidade nesta quarta-feira (10). Nas redes \
-sociais, clientes relataram problemas em acessar a conta e fazer transferências.
-
-...\
-"""
-
-# Exemplo de notícia JÁ TRATADA (com frontmatter — valor inicial do editor à direita)
-_TEMPLATE_TRATADO = """\
----
-title: Banco do Brasil fora do ar? Aplicativo tem instabilidade e clientes reclamam nas redes
-subtitle: Segundo o site DownDetector, que monitora interrupções em serviços online, \
-aplicativo chegou a ter mais de 2,5 mil pela manhã. Banco normalizou os serviços por volta das 15h20.
-url: https://g1.globo.com/economia/noticia/2026/06/10/banco-do-brasil-fora-do-ar.ghtml
-date: 10-06-2026
-category: finanças
----
-
-O aplicativo do Banco do Brasil passou por instabilidade nesta quarta-feira (10). \
-Nas redes sociais, clientes relataram problemas em acessar a conta e fazer transferências.
-
-...\
-"""
 
 _STATUS_ICON = {
     "ready": "✅",
@@ -160,7 +126,10 @@ def _render_record(url: str, use_llm: bool, model_path: str) -> None:
 
         with left:
             st.markdown("**Arquivo original em .md**")
-            st.code(original or _TEMPLATE_ORIGINAL, language="markdown")
+            if original:
+                st.code(original, language="markdown")
+            else:
+                st.info("Original ainda não carregado (ou a conversão veio vazia). Use 📥 Carregar original.")
 
         with right:
             st.markdown("**Editor de tratamento**")
@@ -195,7 +164,10 @@ def _warn_if_date_diverges(url: str, edited: str) -> None:
 
 
 def _render_editor_and_save(url: str, original: str) -> None:
-    current = treated.get(url, original or _TEMPLATE_TRATADO)
+    day = nl.date_of(link_groups, url)
+    current = tpl.initial_text(
+        url, nl.to_br(day) if day else "", treated.get(url), original
+    )
 
     if code_editor is not None:
         response = code_editor(current, lang="markdown", key=f"ed_{url}")
@@ -208,6 +180,9 @@ def _render_editor_and_save(url: str, original: str) -> None:
     col_aceitar, col_descartar = st.columns(2)
     with col_aceitar:
         if st.button("✅ Aceitar", key=f"accept_{url}"):
+            if tpl.is_example(edited):
+                st.error("O texto é o exemplo de template; edite o conteúdo da notícia antes de aceitar.")
+                return
             treated[url] = edited
             client.save_treated_news(url, edited, st.session_state.get("last_proc_id"))
             st.success("Documento tratado salvo.")
@@ -240,15 +215,15 @@ if not links:
     left_col, right_col = st.columns([1, 1])
     with left_col:
         st.markdown("**Arquivo original em .md**")
-        st.code(_TEMPLATE_ORIGINAL, language="markdown")
+        st.code(tpl.TEMPLATE_ORIGINAL, language="markdown")
     with right_col:
         st.markdown("**Editor de tratamento**")
         if code_editor is not None:
-            tpl_response = code_editor(_TEMPLATE_TRATADO, lang="markdown", key="ed_template")
-            tpl_edited = tpl_response.get("text") or _TEMPLATE_TRATADO
+            tpl_response = code_editor(tpl.TEMPLATE_TRATADO, lang="markdown", key="ed_template")
+            tpl_edited = tpl_response.get("text") or tpl.TEMPLATE_TRATADO
         else:
             tpl_edited = st.text_area(
-                "Markdown tratado", value=_TEMPLATE_TRATADO, height=300, key="ta_template"
+                "Markdown tratado", value=tpl.TEMPLATE_TRATADO, height=300, key="ta_template"
             )
         tpl_col_aceitar, tpl_col_descartar = st.columns(2)
         with tpl_col_aceitar:
